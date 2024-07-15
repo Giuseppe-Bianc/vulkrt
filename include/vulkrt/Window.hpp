@@ -4,8 +4,12 @@
 
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
+// clang-format off
+
+#include <vulkan/vulkan.h>
 #include <GLFW/glfw3.h>
+
+// clang-format on
 
 #include "headers.hpp"
 
@@ -13,16 +17,18 @@ namespace lve {
 
     class Window {
     public:
-        Window(const int w, const int h, const std::string_view &window_name);
+        Window(const int w, const int h, const std::string_view &window_name) noexcept;
         ~Window();
 
         Window(const Window &other) = delete;
         Window(Window &&other) noexcept = delete;
-        Window &operator=(const Window &other)  = delete;
+        Window &operator=(const Window &other) = delete;
         Window &operator=(Window &&other) noexcept = delete;
 
-        [[nodiscard]] GLFWwindow *getGLFWWindow() { return window; }
-        [[nodiscard]] bool shouldClose() { return glfwWindowShouldClose(window); }
+        [[nodiscard]] GLFWwindow *getGLFWWindow() const noexcept { return window; }
+        [[nodiscard]] bool shouldClose() const noexcept { return glfwWindowShouldClose(window); }
+        [[nodiscard]] static fs::path calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile);
+        void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
 
     private:
         void initWindow();
@@ -31,14 +37,12 @@ namespace lve {
         static void keyCallback(GLFWwindow *window, int key, int scancode, int action, int mods);
         void createWindow();
 
-        void setHints();
-        void initializeGLFW();
+        void setHints() const;
+        void initializeGLFW() const;
 
-        [[nodiscard]] std::string formatMode(const GLFWvidmode *mode);
+        [[nodiscard]] std::string formatMode(const GLFWvidmode *mode) const;
 
         void centerWindow();
-
-        /*fs::path calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile);*/
 
         const int width;
         const int height;

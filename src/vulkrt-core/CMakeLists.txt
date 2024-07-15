@@ -4,9 +4,10 @@ find_package(Vulkan REQUIRED)
 add_library(vulkrt-core Vulkrt.cpp
                         FPSCounter.cpp
         Window.cpp
-        ../../include/vulkrt/Window.hpp
         App.cpp
-        ../../include/vulkrt/App.hpp)
+        Pipeline.cpp
+        Device.cpp
+)
 
 
 
@@ -49,14 +50,11 @@ set_target_properties(
              CXX_VISIBILITY_PRESET hidden
              VISIBILITY_INLINES_HIDDEN YES)
 
-generate_export_header(vulkrt-core EXPORT_FILE_NAME ${PROJECT_BINARY_DIR}/include/vulkrt/sample_library_export.hpp)
+############## Build SHADERS #######################
 
-if(NOT BUILD_SHARED_LIBS)
-  target_compile_definitions(vulkrt-core PUBLIC SAMPLE_LIBRARY_STATIC_DEFINE)
-endif()
-
-
-
+# Find all vertex and fragment sources within shaders directory
+# taken from VBlancos vulkan tutorial
+# https://github.com/vblanco20-1/vulkan-guide/blob/all-chapters/CMakeLists.txt
 ############## Build SHADERS #######################
 
 # Find all vertex and fragment sources within shaders directory
@@ -79,8 +77,8 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES
 )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
-  get_filename_component(FILE_NAME_WE ${GLSL} NAME_WE)
-  set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME_WE}.spv")
+  get_filename_component(FILE_NAME  ${GLSL} NAME)
+  set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
   add_custom_command(
           OUTPUT ${SPIRV}
           COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
@@ -92,4 +90,11 @@ add_custom_target(
         Shaders
         DEPENDS ${SPIRV_BINARY_FILES}
 )
+
 add_dependencies(vulkrt-core Shaders)
+
+generate_export_header(vulkrt-core EXPORT_FILE_NAME ${PROJECT_BINARY_DIR}/include/vulkrt/sample_library_export.hpp)
+
+if(NOT BUILD_SHARED_LIBS)
+  target_compile_definitions(vulkrt-core PUBLIC SAMPLE_LIBRARY_STATIC_DEFINE)
+endif()

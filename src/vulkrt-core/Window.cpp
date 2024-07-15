@@ -6,9 +6,11 @@
 #include "vulkrt/timer/Timer.hpp"
 
 namespace lve {
-    Window::Window(const int w, const int h, const std::string_view &window_name) : width(w), height(h), windowName(window_name) {
+    DISABLE_WARNINGS_PUSH(26447)
+    Window::Window(const int w, const int h, const std::string_view &window_name) noexcept : width(w), height(h), windowName(window_name) {
         initWindow();
     }
+    DISABLE_WARNINGS_POP()
     Window::~Window() {
         glfwDestroyWindow(window);
         glfwTerminate();
@@ -47,7 +49,7 @@ namespace lve {
         // glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     }
 
-    void Window::setHints() {
+    void Window::setHints() const {
         vnd::AutoTimer timer("set glfw hints");
         // Set GLFW context version and profile
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -56,7 +58,7 @@ namespace lve {
         // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     }
-    void Window::initializeGLFW() {
+    void Window::initializeGLFW() const {
         vnd::AutoTimer timer("glfw setup");
         if(!glfwInit()) {
             LCRITICAL("Failed to initialize GLFW");
@@ -70,7 +72,7 @@ namespace lve {
         glfwSetErrorCallback(errorCallback);
     }
 
-    std::string Window::formatMode(const GLFWvidmode *mode) {
+    std::string Window::formatMode(const GLFWvidmode *mode) const {
         return FORMAT("({}x{}, Bits rgb{}{}{}, RR:{}Hz)", mode->width, mode->height, mode->redBits, mode->greenBits, mode->blueBits,
                       mode->refreshRate);
     }
@@ -95,7 +97,8 @@ namespace lve {
         vnd::Timer crepositiont("calculating for reposition");
         const int monitorWidth = mode->width;
         const int monitorHeight = mode->height;
-        int windowWidth, windowHeight;
+        int windowWidth;
+        int windowHeight;
         glfwGetWindowSize(window, &windowWidth, &windowHeight);
         auto centerX = CALC_CENTRO(monitorWidth, windowWidth);
         auto centerY = CALC_CENTRO(monitorHeight, windowHeight);
@@ -123,10 +126,10 @@ namespace lve {
         LINFO("Monitor:\"{}\", Phys:{}x{}mm, Scale:({}/{}), Pos:({}/{})", glfwGetMonitorName(primaryMonitor), monitorPhysicalWidth,
               monitorPhysicalHeight, xScale, yScale, xPos, yPos);
         LINFO("Monitor Mode:{}", formatMode(mode));
-        LINFO("created the window {0}: (w: {1}, h: {2}, pos:(x:{3}, y:{4}))", windowName.data(), width, height, centerX, centerY);
+        LINFO("created the window {0}: (w: {1}, h: {2}, pos:({3}/{4}))", windowName.data(), width, height, centerX, centerY);
     }
 
-    /*fs::path Window::calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile) {
+    fs::path Window::calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile) {
         // Get the parent directory of the executable path
         fs::path parentDir = executablePath.parent_path();
 
@@ -142,7 +145,7 @@ namespace lve {
 
         // Move up one more level to reach the parent directory of "src"
         parentDir = parentDir.parent_path();
-        auto resp = fs::path("src") / "engine" / "res";
+        auto resp = fs::path("shaders");
         // Construct the relative path to the target file
         auto relativePathToTarget = parentDir / resp / targetFile;
         // Construct the path to the target file under "src/engine/res"
@@ -151,6 +154,11 @@ namespace lve {
         auto relativePath = fs::relative(relativePathToTarget, executablePath);
 
         return relativePath.lexically_normal();
-    }*/
+        // return parentDir;
+    }
+
+    void Window::createWindowSurface(VkInstance instance, VkSurfaceKHR *surface) {
+        if(glfwCreateWindowSurface(instance, window, nullptr, surface)) { throw std::runtime_error("failed to  create window surface"); }
+    }
 
 }  // namespace lve
