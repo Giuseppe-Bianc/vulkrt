@@ -1,7 +1,7 @@
-#include <catch2/catch_test_macros.hpp>
+/*#include <catch2/catch_test_macros.hpp>
 
 
-#include <vulkrt/sample_library.hpp>
+#include <vulkrt/Vulkrt.hpp>
 
 
 TEST_CASE("Factorials are computed", "[factorial]")
@@ -11,4 +11,4 @@ TEST_CASE("Factorials are computed", "[factorial]")
   REQUIRE(factorial(2) == 2);
   REQUIRE(factorial(3) == 6);
   REQUIRE(factorial(10) == 3628800);
-}
+}*/
