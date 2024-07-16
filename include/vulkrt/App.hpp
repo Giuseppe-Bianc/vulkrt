@@ -5,19 +5,31 @@
 #pragma once
 
 #include "Pipeline.hpp"
+#include "SwapChain.hpp"
 #include "Window.hpp"
 
 namespace lve {
 
     class App {
     public:
+        App() noexcept;
+        ~App();
+        App(const App &) = delete;
+        App &operator=(const App &) = delete;
         void run();
 
     private:
+        void createPipelineLayout();
+        void createPipeline();
+        void createCommandBuffers();
+        void drawFrame();
+
         Window lveWindow{WWIDTH, WHEIGHT, WTITILE};
         Device lveDevice{lveWindow};
-        Pipeline lvePipeline{lveDevice, "../../../shaders/simple_shader.vert.spv", "../../../shaders/simple_shader.vert.spv", Pipeline::defaultPipelineConfigInfo(WWIDTH, WHEIGHT)};
+        SwapChain lveSwapChain{lveDevice, lveWindow.getExtent()};
+        std::unique_ptr<Pipeline> lvePipeline;
+        VkPipelineLayout pipelineLayout;
+        std::vector<VkCommandBuffer> commandBuffers;
     };
-
 }  // namespace lve
 // NOLINTEND(*-include-cleaner)

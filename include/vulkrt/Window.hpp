@@ -20,15 +20,14 @@ namespace lve {
         Window(const int w, const int h, const std::string_view &window_name) noexcept;
         ~Window();
 
-        Window(const Window &other) = delete;
-        Window(Window &&other) noexcept = delete;
-        Window &operator=(const Window &other) = delete;
-        Window &operator=(Window &&other) noexcept = delete;
+        Window(const Window &) = delete;
+        Window &operator=(const Window &) = delete;
 
         [[nodiscard]] GLFWwindow *getGLFWWindow() const noexcept { return window; }
         [[nodiscard]] bool shouldClose() const noexcept { return glfwWindowShouldClose(window); }
         [[nodiscard]] static fs::path calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile);
         void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
+        [[nodiscard]] VkExtent2D getExtent() noexcept {return  {C_UI32T(width),C_UI(height)}; }
 
     private:
         void initWindow();

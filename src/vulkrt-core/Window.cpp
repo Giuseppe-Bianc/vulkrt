@@ -6,15 +6,15 @@
 #include "vulkrt/timer/Timer.hpp"
 
 namespace lve {
-    DISABLE_WARNINGS_PUSH(26447)
+    DISABLE_WARNINGS_PUSH(26432 26447)
     Window::Window(const int w, const int h, const std::string_view &window_name) noexcept : width(w), height(h), windowName(window_name) {
         initWindow();
     }
-    DISABLE_WARNINGS_POP()
     Window::~Window() {
         glfwDestroyWindow(window);
         glfwTerminate();
     }
+    DISABLE_WARNINGS_POP()
     void Window::initWindow() {
         initializeGLFW();
         setHints();
@@ -105,7 +105,8 @@ namespace lve {
         LINFO("{}", crepositiont);
         vnd::Timer wrepositiont("window reposition");
         glfwSetWindowPos(window, centerX, centerY);
-        int posX = 0, posY = 0;
+        int posX = 0;
+        int posY = 0;
         glfwGetWindowPos(window, &posX, &posY);
         if(posX != centerX || posY != centerY) {
             glfwDestroyWindow(window);
@@ -113,8 +114,10 @@ namespace lve {
             throw std::runtime_error("Failed to position the window at the center.");
         }
         LINFO("{}", wrepositiont);
-        int xPos, yPos;
-        float xScale, yScale;
+        int xPos;
+        int yPos;
+        float xScale;
+        float yScale;
         int monitorPhysicalWidth;
         int monitorPhysicalHeight;
         vnd::Timer tmonitorinfo("get monitor info");

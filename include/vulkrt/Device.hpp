@@ -5,15 +5,15 @@
 namespace lve {
 
     struct SwapChainSupportDetails {
-        VkSurfaceCapabilitiesKHR capabilities;
+        VkSurfaceCapabilitiesKHR capabilities{};
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
         static void printDetails(const SwapChainSupportDetails &swapCainsDetails);
     };
 
     struct QueueFamilyIndices {
-        uint32_t graphicsFamily;
-        uint32_t presentFamily;
+        uint32_t graphicsFamily{};
+        uint32_t presentFamily{};
         bool graphicsFamilyHasValue = false;
         bool presentFamilyHasValue = false;
         [[nodiscard]] bool isComplete() const noexcept { return graphicsFamilyHasValue && presentFamilyHasValue; }
@@ -22,12 +22,12 @@ namespace lve {
     class Device {
     public:
 #ifdef NDEBUG
-        const bool enableValidationLayers = false;
+        static inline constexpr bool enableValidationLayers = false;
 #else
-        const bool enableValidationLayers = true;
+        static inline constexpr bool enableValidationLayers = true;
 #endif
 
-        Device(Window &window);
+        explicit Device(Window &window) noexcept;
         ~Device();
 
         // Not copyable or movable
@@ -36,11 +36,11 @@ namespace lve {
         Device(Device &&) = delete;
         Device &operator=(Device &&) = delete;
 
-        [[nodiscard]] VkCommandPool getCommandPool() noexcept { return commandPool; }
-        [[nodiscard]] VkDevice device() noexcept { return device_; }
-        [[nodiscard]] VkSurfaceKHR surface() noexcept { return surface_; }
-        [[nodiscard]] VkQueue graphicsQueue() noexcept { return graphicsQueue_; }
-        [[nodiscard]] VkQueue presentQueue() noexcept { return presentQueue_; }
+        [[nodiscard]] VkCommandPool getCommandPool() const noexcept { return commandPool; }
+        [[nodiscard]] VkDevice device() const noexcept { return device_; }
+        [[nodiscard]] VkSurfaceKHR surface() const noexcept { return surface_; }
+        [[nodiscard]] VkQueue graphicsQueue() const noexcept { return graphicsQueue_; }
+        [[nodiscard]] VkQueue presentQueue() const noexcept { return presentQueue_; }
 
         [[nodiscard]] SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
         [[nodiscard]] uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
@@ -51,7 +51,7 @@ namespace lve {
         // Buffer Helper Functions
         void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer &buffer,
                           VkDeviceMemory &bufferMemory);
-        VkCommandBuffer beginSingleTimeCommands() noexcept;
+        [[nodiscard]] VkCommandBuffer beginSingleTimeCommands() noexcept;
         void endSingleTimeCommands(VkCommandBuffer commandBuffer) noexcept;
         void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept;
         void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept;
@@ -70,14 +70,14 @@ namespace lve {
         void createCommandPool();
 
         // helper functions
-        bool isDeviceSuitable(VkPhysicalDevice device);
-        std::vector<const char *> getRequiredExtensions();
-        bool checkValidationLayerSupport() const;
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+        [[nodiscard]] bool isDeviceSuitable(VkPhysicalDevice device);
+        [[nodiscard]] std::vector<const char *> getRequiredExtensions();
+        [[nodiscard]] bool checkValidationLayerSupport() const;
+        [[nodiscard]] QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
         void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) const noexcept;
         void hasGflwRequiredInstanceExtensions();
-        bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-        SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
+        [[nodiscard]] bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+        [[nodiscard]] SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
         VkInstance instance;
         VkDebugUtilsMessengerEXT debugMessenger;

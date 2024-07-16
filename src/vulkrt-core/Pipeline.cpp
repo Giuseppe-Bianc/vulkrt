@@ -2,9 +2,11 @@
 // Created by gbian on 15/07/2024.
 //
 
+// NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/Pipeline.hpp"
 #include "vulkrt/timer/Timer.hpp"
 namespace lve {
+    DISABLE_WARNINGS_PUSH(26432)
     Pipeline::Pipeline(Device &device, const std::string &vertFilepath, const std::string &fragFilepath,
                        const PipelineConfigInfo &configInfo)
       : lveDevice{device} {
@@ -16,36 +18,49 @@ namespace lve {
         vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
         vkDestroyPipeline(lveDevice.device(), graphicsPipeline, nullptr);
     }
-    DISABLE_WARNINGS_PUSH(26447)
-    std::vector<char> Pipeline::readFile(const std::string &filepath) {
-        std::ifstream file{filepath, std::ios::ate | std::ios::binary};
 
-        vnd::AutoTimer timer(FORMAT("reading shader {}", filepath));
-        if(!file.is_open()) { throw std::runtime_error(FORMAT("failed to open file: {}", filepath)); }
+    std::vector<char> Pipeline::readFile(const std::string &filename) {
+        std::ifstream file{filename, std::ios::ate | std::ios::binary};
 
+        vnd::AutoTimer timer(FORMAT("reading shader {}", filename));
+        if(!file.is_open()) [[unlikely]] { throw std::runtime_error(FORMAT("failed to open file: {}", filename)); }
+
+        // Determine file size using std::ifstream::seekg and tellg
         const auto fileSize = C_ST(file.tellg());
-        std::vector<char> buffer(fileSize);
+        if(fileSize == -1) [[unlikely]] { throw std::runtime_error(FORMAT("failed to get file size: {}", filename)); }
 
+        // Allocate buffer and read file contents
+        std::vector<char> buffer(fileSize);
         file.seekg(0);
         file.read(buffer.data(), fileSize);
 
+        // Check for read errors
+        if(!file) [[unlikely]] {
+            throw std::runtime_error(FORMAT("failed to read file: {}", filename));
+        }
+
+        // Close the file (automatically done by ifstream destructor, but good practice to explicitly close)
         file.close();
+
         return buffer;
     }
     DISABLE_WARNINGS_POP()
 
-    void Pipeline::Pipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath,
-                                                    const PipelineConfigInfo &configInfo) {
+    DISABLE_WARNINGS_PUSH(26446)
+    void Pipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath,
+                                          [[maybe_unused]] const PipelineConfigInfo &configInfo) {
         assert(configInfo.pipelineLayout != nullptr && "Cannot create graphics pipeline: no pipelineLayout provided in config info");
         assert(configInfo.renderPass != nullptr && "Cannot create graphics pipeline: no renderPass provided in config info");
-
         auto vertCode = readFile(vertFilepath);
         auto fragCode = readFile(fragFilepath);
 
-        createShaderModule(vertCode, &vertShaderModule);
-        createShaderModule(fragCode, &fragShaderModule);
+        LINFO("Vertex Shader Code Size: {}", vertCode.size());
+        LINFO("Fragment Shader Code Size: {}", fragCode.size());
 
-        VkPipelineShaderStageCreateInfo shaderStages[2];
+        createShaderMolule(vertCode, &vertShaderModule);
+        createShaderMolule(fragCode, &fragShaderModule);
+
+        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
         shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
         shaderStages[0].module = vertShaderModule;
@@ -53,6 +68,7 @@ namespace lve {
         shaderStages[0].flags = 0;
         shaderStages[0].pNext = nullptr;
         shaderStages[0].pSpecializationInfo = nullptr;
+
         shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
         shaderStages[1].module = fragShaderModule;
@@ -63,59 +79,54 @@ namespace lve {
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr;  // Optional
         vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr;  // Optional
+        vertexInputInfo.vertexBindingDescriptionCount = 0;
+        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
+        vertexInputInfo.pVertexBindingDescriptions = nullptr;
 
-        VkGraphicsPipelineCreateInfo pipelineInfo = {};
+        VkPipelineViewportStateCreateInfo viewportInfo{};
+        viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportInfo.viewportCount = 1;
+        viewportInfo.pViewports = &configInfo.viewport;
+        viewportInfo.scissorCount = 1;
+        viewportInfo.pScissors = &configInfo.scissor;
+
+        VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages;
+        pipelineInfo.pStages = shaderStages.data();
         pipelineInfo.pVertexInputState = &vertexInputInfo;
         pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-        pipelineInfo.pViewportState = &configInfo.viewportInfo;
+        pipelineInfo.pViewportState = &viewportInfo;
         pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
         pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
         pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
-        pipelineInfo.pDynamicState = nullptr;  // Optional
         pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
-
+        pipelineInfo.pDynamicState = nullptr;  // Optional
         pipelineInfo.layout = configInfo.pipelineLayout;
         pipelineInfo.renderPass = configInfo.renderPass;
         pipelineInfo.subpass = configInfo.subpass;
-
-        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
-        pipelineInfo.basePipelineIndex = -1;               // Optional
+        pipelineInfo.basePipelineIndex = -1;
+        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
         if(vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline!");
+            throw std::runtime_error("failed to create graphics pipeline");
         }
-
-        vkDestroyShaderModule(lveDevice.device(), fragShaderModule, nullptr);
-        vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
-        fragShaderModule = VK_NULL_HANDLE;
-        vertShaderModule = VK_NULL_HANDLE;
-        LINFO("Vertex Shader Code Size: {}", vertCode.size());
-        LINFO("Fragment Shader Code Size: {}", fragCode.size());
     }
+    DISABLE_WARNINGS_POP()
 
-    void Pipeline::createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule) {
+    void Pipeline::createShaderMolule(const std::vector<char> &code, VkShaderModule *shaderModule) {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();
-        createInfo.pCode = reinterpret_cast<const uint32_t *>(code.data());
+        createInfo.pCode = C_CPCU32T(code.data());
 
         if(vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
             throw std::runtime_error("failed to create shader module");
         }
     }
 
-    void Pipeline::bind(VkCommandBuffer commandBuffer) {
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-    }
-
-    PipelineConfigInfo Pipeline::defaultPipelineConfigInfo(uint32_t width, uint32_t height) {
+    PipelineConfigInfo Pipeline::defaultPipelineConfigInfo(uint32_t width, uint32_t height) noexcept {
         PipelineConfigInfo configInfo{};
 
         configInfo.inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -124,19 +135,13 @@ namespace lve {
 
         configInfo.viewport.x = 0.0f;
         configInfo.viewport.y = 0.0f;
-        configInfo.viewport.width = static_cast<float>(width);
-        configInfo.viewport.height = static_cast<float>(height);
+        configInfo.viewport.width = C_F(width);
+        configInfo.viewport.height = C_F(height);
         configInfo.viewport.minDepth = 0.0f;
         configInfo.viewport.maxDepth = 1.0f;
 
         configInfo.scissor.offset = {0, 0};
         configInfo.scissor.extent = {width, height};
-
-        configInfo.viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        configInfo.viewportInfo.viewportCount = 1;
-        configInfo.viewportInfo.pViewports = &configInfo.viewport;
-        configInfo.viewportInfo.scissorCount = 1;
-        configInfo.viewportInfo.pScissors = &configInfo.scissor;
 
         configInfo.rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         configInfo.rasterizationInfo.depthClampEnable = VK_FALSE;
@@ -191,4 +196,11 @@ namespace lve {
 
         return configInfo;
     }
+
+    void Pipeline::bind(VkCommandBuffer commandBuffer) const noexcept {
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+    }
+
 }  // namespace lve
+
+// NOLINTEND(*-include-cleaner)

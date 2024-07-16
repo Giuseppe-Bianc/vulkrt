@@ -66,7 +66,7 @@ namespace fs = std::filesystem;
 namespace ch = std::chrono;
 
 DISABLE_WARNINGS_PUSH(26481)
-static inline constexpr std::string_view WTITILE = "qbRayTracer";
+static inline constexpr std::string_view WTITILE = "Hello vulkrt!";
 static inline constexpr std::size_t factor = 80;
 static inline constexpr auto WWIDTH = 16 * factor;
 static inline constexpr auto WHEIGHT = 9 * factor;
@@ -76,6 +76,8 @@ static inline constexpr long double TWO_PI = 2 * PI;
 static inline constexpr long double HALF_PI = PI / 2;
 static inline constexpr auto HALF_PID = NC_D(PI / 2);
 static inline constexpr auto MAXDBL = std::numeric_limits<double>::max();
+static inline constexpr auto MAXU32 = std::numeric_limits<std::uint32_t>::max();
+static inline constexpr auto MAXU64 = std::numeric_limits<std::uint64_t>::max();
 static inline constexpr const auto *CNL = "\n";
 static inline constexpr const auto *CCR = "\r";
 static inline constexpr auto NL = CNL[0];

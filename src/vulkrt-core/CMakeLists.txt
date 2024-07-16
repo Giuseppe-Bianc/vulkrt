@@ -7,6 +7,7 @@ add_library(vulkrt-core Vulkrt.cpp
         App.cpp
         Pipeline.cpp
         Device.cpp
+        SwapChain.cpp
 )
 
 
