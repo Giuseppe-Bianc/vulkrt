@@ -1,7 +1,6 @@
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/Device.hpp"
 #include "vulkrt/timer/Timer.hpp"
-#include <vulkan/vk_enum_string_helper.h>
 namespace lve {
 
     DISABLE_WARNINGS_PUSH(26485 26481 26446 26482)
@@ -130,7 +129,7 @@ namespace lve {
             createInfo.pNext = nullptr;
         }
 
-        if(vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) [[unlikely]] { throw std::runtime_error("failed to create instance!"); }
+        VK_CHECK(vkCreateInstance(&createInfo, nullptr, &instance), "failed to create instance!");
 
         hasGflwRequiredInstanceExtensions();
     }
@@ -198,9 +197,7 @@ namespace lve {
             createInfo.enabledLayerCount = 0;
         }
 
-        if(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device_) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to create logical device!");
-        }
+        VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device_), "failed to create logical device!");
 
         vkGetDeviceQueue(device_, indices.graphicsFamily, 0, &graphicsQueue_);
         vkGetDeviceQueue(device_, indices.presentFamily, 0, &presentQueue_);
@@ -215,9 +212,7 @@ namespace lve {
         poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
                          VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // NOLINT(*-signed-bitwise)
 
-        if(vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to create command pool!");
-        }
+        VK_CHECK(vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool), "failed to create command pool!");
     }
 
     void Device::createSurface() { window.createWindowSurface(instance, &surface_); }
@@ -255,9 +250,7 @@ namespace lve {
         if(!enableValidationLayers) { return; }
         VkDebugUtilsMessengerCreateInfoEXT createInfo;
         populateDebugMessengerCreateInfo(createInfo);
-        if(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to set up debug messenger!");
-        }
+        VK_CHECK(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger), "failed to set up debug messenger!");
     }
 
     bool Device::checkValidationLayerSupport() const {
@@ -270,13 +263,13 @@ namespace lve {
         for(const char *layerName : validationLayers) {
             bool layerFound = false;
 
-            for(const auto &[availablelayerName, availablespecVersion, availableimplementationVersion, availabledescription] : availableLayers) {
+            for(const auto &[availablelayerName, availablespecVersion, availableimplementationVersion, availabledescription] :
+                availableLayers) {
                 if(strcmp(layerName, availablelayerName) == 0) {
                     layerFound = true;
                     break;
                 }
             }
-
 
             if(!layerFound) { return false; }
         }
@@ -340,7 +333,7 @@ namespace lve {
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-        for (const auto& [i, queueFamily] : std::views::enumerate(queueFamilies)) {
+        for(const auto &[i, queueFamily] : std::views::enumerate(queueFamilies)) {
             if(queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 indices.graphicsFamily = C_UI32T(i);
                 indices.graphicsFamilyHasValue = true;
@@ -411,9 +404,7 @@ namespace lve {
         bufferInfo.usage = usage;
         bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-        if(vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to create vertex buffer!");
-        }
+        VK_CHECK(vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer), "failed to create vertex buffer!");
 
         VkMemoryRequirements memRequirements;
         vkGetBufferMemoryRequirements(device_, buffer, &memRequirements);
@@ -423,9 +414,7 @@ namespace lve {
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties);
 
-        if(vkAllocateMemory(device_, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to allocate vertex buffer memory!");
-        }
+        VK_CHECK(vkAllocateMemory(device_, &allocInfo, nullptr, &bufferMemory), "failed to allocate vertex buffer memory!");
 
         vkBindBufferMemory(device_, buffer, bufferMemory, 0);
     }
@@ -496,7 +485,7 @@ namespace lve {
 
     void Device::createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags mproperties, VkImage &image,
                                      VkDeviceMemory &imageMemory) {
-        if(vkCreateImage(device_, &imageInfo, nullptr, &image) != VK_SUCCESS) [[unlikely]] { throw std::runtime_error("failed to create image!"); }
+        VK_CHECK(vkCreateImage(device_, &imageInfo, nullptr, &image), "failed to create image!");
 
         VkMemoryRequirements memRequirements;
         vkGetImageMemoryRequirements(device_, image, &memRequirements);
@@ -506,11 +495,9 @@ namespace lve {
         allocInfo.allocationSize = memRequirements.size;
         allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties);
 
-        if(vkAllocateMemory(device_, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to allocate image memory!");
-        }
+        VK_CHECK(vkAllocateMemory(device_, &allocInfo, nullptr, &imageMemory), "failed to allocate image memory!");
 
-        if(vkBindImageMemory(device_, image, imageMemory, 0) != VK_SUCCESS) [[unlikely]] { throw std::runtime_error("failed to bind image memory!"); }
+        VK_CHECK(vkBindImageMemory(device_, image, imageMemory, 0), "failed to bind image memory!");
     }
     DISABLE_WARNINGS_POP()
 

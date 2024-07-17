@@ -7,7 +7,6 @@
 #include "Device.hpp"
 #include "headers.hpp"
 
-#include <vulkan/vulkan.h>
 
 namespace lve {
 

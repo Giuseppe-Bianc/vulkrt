@@ -6,16 +6,14 @@
 
 // clang-format off
 
-#include <vulkan/vulkan.h>
+#include  "vulkanCheck.hpp"
 #include <GLFW/glfw3.h>
 
 // clang-format on
 
-#include "headers.hpp"
-
 namespace lve {
 
-    class Window {
+    class Window { // NOLINT(*-special-member-functions)
     public:
         Window(const int w, const int h, const std::string_view &window_name) noexcept;
         ~Window();
@@ -27,7 +25,7 @@ namespace lve {
         [[nodiscard]] bool shouldClose() const noexcept { return glfwWindowShouldClose(window); }
         [[nodiscard]] static fs::path calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile);
         void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
-        [[nodiscard]] VkExtent2D getExtent() noexcept {return  {C_UI32T(width),C_UI(height)}; }
+        [[nodiscard]] VkExtent2D getExtent() const noexcept {return  {C_UI32T(width),C_UI(height)}; }
 
     private:
         void initWindow();

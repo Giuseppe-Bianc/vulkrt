@@ -7,6 +7,7 @@
 #include "Pipeline.hpp"
 #include "SwapChain.hpp"
 #include "Window.hpp"
+#include "Model.hpp"
 
 namespace lve {
 
@@ -19,6 +20,7 @@ namespace lve {
         void run();
 
     private:
+        void loadModels();
         void createPipelineLayout();
         void createPipeline();
         void createCommandBuffers();
@@ -30,6 +32,7 @@ namespace lve {
         std::unique_ptr<Pipeline> lvePipeline;
         VkPipelineLayout pipelineLayout;
         std::vector<VkCommandBuffer> commandBuffers;
+        std::unique_ptr<Model> lveModel;
     };
 }  // namespace lve
 // NOLINTEND(*-include-cleaner)

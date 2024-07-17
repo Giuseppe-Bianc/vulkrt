@@ -8,6 +8,8 @@ add_library(vulkrt-core Vulkrt.cpp
         Pipeline.cpp
         Device.cpp
         SwapChain.cpp
+        Model.cpp
+        ../../include/vulkrt/Model.hpp
 )
 
 

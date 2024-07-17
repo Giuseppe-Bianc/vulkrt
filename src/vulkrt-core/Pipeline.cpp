@@ -4,6 +4,7 @@
 
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/Pipeline.hpp"
+#include "vulkrt/Model.hpp"
 #include "vulkrt/timer/Timer.hpp"
 namespace lve {
     DISABLE_WARNINGS_PUSH(26432)
@@ -35,9 +36,7 @@ namespace lve {
         file.read(buffer.data(), fileSize);
 
         // Check for read errors
-        if(!file) [[unlikely]] {
-            throw std::runtime_error(FORMAT("failed to read file: {}", filename));
-        }
+        if(!file) [[unlikely]] { throw std::runtime_error(FORMAT("failed to read file: {}", filename)); }
 
         // Close the file (automatically done by ifstream destructor, but good practice to explicitly close)
         file.close();
@@ -77,12 +76,14 @@ namespace lve {
         shaderStages[1].pNext = nullptr;
         shaderStages[1].pSpecializationInfo = nullptr;
 
+        auto bindingDescriptions = Model::Vertex::getBindingDescriptions();
+        auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexAttributeDescriptionCount = 0;
-        vertexInputInfo.vertexBindingDescriptionCount = 0;
-        vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-        vertexInputInfo.pVertexBindingDescriptions = nullptr;
+        vertexInputInfo.vertexAttributeDescriptionCount = C_UI32T(attributeDescriptions.size());
+        vertexInputInfo.vertexBindingDescriptionCount = C_UI32T(bindingDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 
         VkPipelineViewportStateCreateInfo viewportInfo{};
         viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -109,9 +110,8 @@ namespace lve {
         pipelineInfo.basePipelineIndex = -1;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        if(vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics pipeline");
-        }
+        VK_CHECK(vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
+                 "failed to create graphics pipeline");
     }
     DISABLE_WARNINGS_POP()
 
@@ -121,9 +121,7 @@ namespace lve {
         createInfo.codeSize = code.size();
         createInfo.pCode = C_CPCU32T(code.data());
 
-        if(vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, shaderModule) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create shader module");
-        }
+        VK_CHECK(vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, shaderModule), "failed to create shader module");
     }
 
     PipelineConfigInfo Pipeline::defaultPipelineConfigInfo(uint32_t width, uint32_t height) noexcept {

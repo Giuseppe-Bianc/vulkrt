@@ -74,9 +74,8 @@ namespace lve {
         submitInfo.pSignalSemaphores = signalSemaphores;
 
         vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
-        if(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to submit draw command buffer!");
-        }
+        VK_CHECK(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
+                 "failed to submit draw command buffer!");
 
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -141,9 +140,7 @@ namespace lve {
 
         createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-        if(vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to create swap chain!");
-        }
+        VK_CHECK(vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain), "failed to create swap chain!");
 
         // we only specified a minimum number of images in the swap chain, so the implementation is
         // allowed to create a swap chain with more. That's why we'll first query the final number of
@@ -171,9 +168,8 @@ namespace lve {
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
-            if(vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS) [[unlikely]] {
-                throw std::runtime_error("failed to create texture image view!");
-            }
+            VK_CHECK(vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]),
+                     "failed to create texture image view!");
         }
     }
 
@@ -230,9 +226,7 @@ namespace lve {
         renderPassInfo.dependencyCount = 1;
         renderPassInfo.pDependencies = &dependency;
 
-        if(vkCreateRenderPass(device.device(), &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) [[unlikely]] {
-            throw std::runtime_error("failed to create render pass!");
-        }
+        VK_CHECK(vkCreateRenderPass(device.device(), &renderPassInfo, nullptr, &renderPass), "failed to create render pass!");
     }
 
     void SwapChain::createFramebuffers() {
@@ -250,9 +244,8 @@ namespace lve {
             framebufferInfo.height = swapChainExtentm.height;
             framebufferInfo.layers = 1;
 
-            if(vkCreateFramebuffer(device.device(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) [[unlikely]] {
-                throw std::runtime_error("failed to create framebuffer!");
-            }
+            VK_CHECK(vkCreateFramebuffer(device.device(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]),
+                     "failed to create framebuffer!");
         }
     }
 
@@ -294,9 +287,7 @@ namespace lve {
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
-            if(vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]) != VK_SUCCESS) [[unlikely]] {
-                throw std::runtime_error("failed to create texture image view!");
-            }
+            VK_CHECK(vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]), "failed to create texture image view!");
         }
     }
 
@@ -314,17 +305,16 @@ namespace lve {
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            if(vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-               vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-               vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) [[unlikely]] {
-                throw std::runtime_error("failed to create synchronization objects for a frame!");
-            }
+            VK_CHECK_SYNC_OBJECTS(vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
+                                  vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
+                                  vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]),
+                                  "failed to create synchronization objects for a frame!");
         }
     }
 
     VkSurfaceFormatKHR SwapChain::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats) const noexcept {
         for(const auto &availableFormat : availableFormats) {
-            if(availableFormat.format == VK_FORMAT_B8G8R8A8_UNORM && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            if(availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
             }
         }
