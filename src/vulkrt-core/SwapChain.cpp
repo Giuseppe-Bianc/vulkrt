@@ -1,11 +1,20 @@
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/SwapChain.hpp"
 
+//#include <utility>
 #include <vulkrt/timer/Timer.hpp>
 
 namespace lve {
     DISABLE_WARNINGS_PUSH(26429 26432 26447 26461 26446 26485)
-    SwapChain::SwapChain(Device &deviceRef, VkExtent2D extent) noexcept : device{deviceRef}, windowExtent{extent} {
+    SwapChain::SwapChain(Device &deviceRef, const VkExtent2D &extent) noexcept : device{deviceRef}, windowExtent{extent} { init(); }
+
+    SwapChain::SwapChain(Device &deviceRef, const VkExtent2D &extent, std::shared_ptr<SwapChain> previous)
+      : device{deviceRef}, windowExtent{extent}, oldSwapChain{std::move(previous)} {
+        init();
+        oldSwapChain = nullptr;
+    }
+
+    void SwapChain::init() {
         createSwapChain();
         createImageViews();
         createRenderPass();
@@ -29,7 +38,7 @@ namespace lve {
             vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
         }
 
-        for(const auto framebuffer : swapChainFramebuffers) { vkDestroyFramebuffer(device.device(), framebuffer, nullptr); }
+        for(auto *const framebuffer : swapChainFramebuffers) { vkDestroyFramebuffer(device.device(), framebuffer, nullptr); }
 
         vkDestroyRenderPass(device.device(), renderPass, nullptr);
 
@@ -41,7 +50,7 @@ namespace lve {
         }
     }
 
-    VkResult SwapChain::acquireNextImage(uint32_t *imageIndex) noexcept {
+    VkResult SwapChain::acquireNextImage(uint32_t *imageIndex) const noexcept {
         vkWaitForFences(device.device(), 1, &inFlightFences[currentFrame], VK_TRUE, MAXU64);
 
         const VkResult result = vkAcquireNextImageKHR(device.device(), swapChain, MAXU64,
@@ -60,8 +69,8 @@ namespace lve {
         VkSubmitInfo submitInfo = {};
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-        std::vector<VkSemaphore> waitSemaphores = {imageAvailableSemaphores[currentFrame]};
-        std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        const std::vector<VkSemaphore> waitSemaphores = {imageAvailableSemaphores[currentFrame]};
+        const std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = waitSemaphores.data();
         submitInfo.pWaitDstStageMask = waitStages.data();
@@ -69,9 +78,9 @@ namespace lve {
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = buffers;
 
-        VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+        const std::vector<VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame]};
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores;
+        submitInfo.pSignalSemaphores = signalSemaphores.data();
 
         vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
         VK_CHECK(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
@@ -81,7 +90,7 @@ namespace lve {
         presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
         presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores;
+        presentInfo.pWaitSemaphores = signalSemaphores.data();
 
         std::vector<VkSwapchainKHR> swapChains = {swapChain};
         presentInfo.swapchainCount = 1;
@@ -97,7 +106,7 @@ namespace lve {
     }
 
     void SwapChain::createSwapChain() {
-        SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
+        const SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
         const VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
         const VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
@@ -138,7 +147,7 @@ namespace lve {
         createInfo.presentMode = presentMode;
         createInfo.clipped = VK_TRUE;
 
-        createInfo.oldSwapchain = VK_NULL_HANDLE;
+        createInfo.oldSwapchain = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
 
         VK_CHECK(vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain), "failed to create swap chain!");
 
@@ -156,10 +165,10 @@ namespace lve {
 
     void SwapChain::createImageViews() {
         swapChainImageViews.resize(swapChainImages.size());
-        for(size_t i = 0; i < swapChainImages.size(); i++) {
+        for (const auto [i, image] : std::views::enumerate(swapChainImages)){
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewInfo.image = swapChainImages[i];
+            viewInfo.image = image;
             viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = swapChainImageFormat;
             viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -209,12 +218,13 @@ namespace lve {
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
         VkSubpassDependency dependency = {};
+
+        dependency.dstSubpass = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.srcAccessMask = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstSubpass = 0;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
         VkRenderPassCreateInfo renderPassInfo = {};
@@ -230,8 +240,12 @@ namespace lve {
     }
 
     void SwapChain::createFramebuffers() {
-        swapChainFramebuffers.resize(imageCount());
-        for(size_t i = 0; i < imageCount(); i++) {
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"createFramebuffers", vnd::Timer::Big};
+#endif
+        const auto imagectn = imageCount();
+        swapChainFramebuffers.resize(imagectn);
+        for(size_t i = 0; i < imagectn; i++) {
             std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthImageViews[i]};
 
             const VkExtent2D swapChainExtentm = getSwapChainExtent();
@@ -313,6 +327,9 @@ namespace lve {
     }
 
     VkSurfaceFormatKHR SwapChain::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats) const noexcept {
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"chooseSwapSurfaceFormat", vnd::Timer::Big};
+#endif
         for(const auto &availableFormat : availableFormats) {
             if(availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
                 return availableFormat;
@@ -323,28 +340,34 @@ namespace lve {
     }
 
     VkPresentModeKHR SwapChain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) const {
-        for(const auto &availablePresentMode : availablePresentModes) {
-            if(availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                LINFO("Present mode: Mailbox");
-                return availablePresentMode;
-            }
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"chooseSwapPresentMode", vnd::Timer::Big};
+#endif
+        // Prefer VK_PRESENT_MODE_MAILBOX_KHR if available
+        if(std::ranges::find(availablePresentModes, VK_PRESENT_MODE_MAILBOX_KHR) != availablePresentModes.end()) {
+            LINFO("Present mode: Mailbox");
+            return VK_PRESENT_MODE_MAILBOX_KHR;
         }
 
-        // for (const auto &availablePresentMode : availablePresentModes) {
-        //   if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+        // Fallback to VK_PRESENT_MODE_IMMEDIATE_KHR if needed
+        // This code is commented out in your example, but if you want to enable it, you can use the following:
+        // if (std::ranges::find(availablePresentModes, VK_PRESENT_MODE_IMMEDIATE_KHR) != availablePresentModes.end()) {
         //     LINFO("Present mode: Immediate");
-        //     return availablePresentMode;
-        //   }
+        //     return VK_PRESENT_MODE_IMMEDIATE_KHR;
         // }
 
+        // Default to VK_PRESENT_MODE_FIFO_KHR (V-Sync)
         LINFO("Present mode: V-Sync");
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
     VkExtent2D SwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) const noexcept {
-        if(capabilities.currentExtent.width != MAXU32) {
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"chooseSwapExtent", vnd::Timer::Big};
+#endif
+        if(capabilities.currentExtent.width != MAXU32) [[likely]] {
             return capabilities.currentExtent;
-        } else {
+        } else [[unlikely]] {
             VkExtent2D actualExtent = windowExtent;
             actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
             actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
@@ -352,7 +375,10 @@ namespace lve {
         }
     }
 
-    VkFormat SwapChain::findDepthFormat() {
+    VkFormat SwapChain::findDepthFormat() const {
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"findDepthFormat", vnd::Timer::Big};
+#endif
         return device.findSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
                                           VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     }

@@ -1,3 +1,4 @@
+// NOLINTBEGIN(*-include-cleaner)
 #pragma once
 
 #include "Window.hpp"
@@ -32,7 +33,7 @@ namespace lve {
 
         // Not copyable or movable
         Device(const Device &) = delete;
-        void operator=(const Device &) = delete;
+        Device &operator=(const Device &) = delete;
         Device(Device &&) = delete;
         Device &operator=(Device &&) = delete;
 
@@ -95,3 +96,4 @@ namespace lve {
     };
 
 }  // namespace lve
+   // NOLINTEND(*-include-cleaner)

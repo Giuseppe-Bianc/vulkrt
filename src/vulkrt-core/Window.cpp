@@ -37,6 +37,12 @@ namespace lve {
             break;
         }
     }
+    void Window::framebufferResizeCallback(GLFWwindow *window, int width, int height) noexcept {
+        auto lveWindow = static_cast<Window *>(glfwGetWindowUserPointer(window));
+        lveWindow->framebufferResized = true;
+        lveWindow->width = width;
+        lveWindow->height = height;
+    }
     void Window::createWindow() {
         vnd::AutoTimer timer("window creation");
         window = glfwCreateWindow(width, height, windowName.data(), nullptr, nullptr);
@@ -53,7 +59,7 @@ namespace lve {
         vnd::AutoTimer timer("set glfw hints");
         // Set GLFW context version and profile
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        // glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
         // glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
@@ -125,6 +131,8 @@ namespace lve {
         glfwGetMonitorContentScale(primaryMonitor, &xScale, &yScale);
         glfwGetMonitorPhysicalSize(primaryMonitor, &monitorPhysicalWidth, &monitorPhysicalHeight);
         LINFO("{}", tmonitorinfo);
+        glfwSetWindowUserPointer(window, this);
+        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
         glfwShowWindow(window);
         LINFO("Monitor:\"{}\", Phys:{}x{}mm, Scale:({}/{}), Pos:({}/{})", glfwGetMonitorName(primaryMonitor), monitorPhysicalWidth,
               monitorPhysicalHeight, xScale, yScale, xPos, yPos);
@@ -148,13 +156,13 @@ namespace lve {
 
         // Move up one more level to reach the parent directory of "src"
         parentDir = parentDir.parent_path();
-        auto resp = fs::path("shaders");
+        const auto resp = fs::path("shaders");
         // Construct the relative path to the target file
-        auto relativePathToTarget = parentDir / resp / targetFile;
+        const auto relativePathToTarget = parentDir / resp / targetFile;
         // Construct the path to the target file under "src/engine/res"
 
         // Calculate the relative path from the executable's directory
-        auto relativePath = fs::relative(relativePathToTarget, executablePath);
+        const auto relativePath = fs::relative(relativePathToTarget, executablePath);
 
         return relativePath.lexically_normal();
         // return parentDir;

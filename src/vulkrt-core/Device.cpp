@@ -1,5 +1,6 @@
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/Device.hpp"
+#include "vulkrt/VlukanLogInfoCallback.hpp"
 #include "vulkrt/timer/Timer.hpp"
 namespace lve {
 
@@ -18,16 +19,16 @@ namespace lve {
         LINFO("Usage: {}", string_VkImageUsageFlags(det.capabilities.supportedUsageFlags));
     }
 
-    [[nodiscard]] inline static std::string_view debugCallbackString(const VkDebugUtilsMessageTypeFlagsEXT &messageType) noexcept {
+    [[nodiscard]] inline static constexpr std::string_view debugCallbackString(VkDebugUtilsMessageTypeFlagsEXT messageType) noexcept {
         switch(messageType) {
         case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:
-            return "Validation layer [General]: ";
+            return "[General] ";
         case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:
-            return "Validation layer [Validation]: ";
+            return "[Validation] ";
         case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:
-            return "Validation layer [Performance]: ";
-        [[unlikely]] default:
-            return "Validation layer: ";
+            return "[Performance] ";
+        default:
+            return "";
         }
     }
 
@@ -35,25 +36,33 @@ namespace lve {
                                                                VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                                const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
                                                                [[maybe_unused]] void *pUserData) {
-        const std::string_view prefix = debugCallbackString(messageType);
-        const std::string_view msg = pCallbackData->pMessage;
+        // Determine the message type
+        const std::string_view type = debugCallbackString(messageType);
+
+        // Format and log the message
+        const auto msg = FORMAT("{}Message ID: {}({}): {}", type, pCallbackData->pMessageIdName ? pCallbackData->pMessageIdName : "Unknown",
+                                pCallbackData->messageIdNumber, pCallbackData->pMessage);
+
         switch(messageSeverity) {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-            LTRACE("{0}{1}", prefix, msg);
+            LTRACE(msg);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-            LINFO("{0}{1}", prefix, msg);
+            LINFO(msg);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-            LWARN("{0}{1}", prefix, msg);
+            LWARN(msg);
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-            LERROR("{0}{1}", prefix, msg);
+            LERROR(msg);
             break;
-        [[unlikely]] default:
-            LDEBUG("{0}{1}", prefix, msg);
+        default:
+            LDEBUG(msg);
             break;
         }
+
+        logDebugValidationLayerInfo(pCallbackData, messageSeverity);
+
         return VK_FALSE;
     }
 
@@ -141,22 +150,16 @@ namespace lve {
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        for(const auto &device : devices) {
-            if(isDeviceSuitable(device)) {
-                physicalDevice = device;
-                break;
-            }
-        }
+        physicalDevice = *std::ranges::find_if(devices, [this](const VkPhysicalDevice &device) { return isDeviceSuitable(device); });
 
         if(physicalDevice == VK_NULL_HANDLE) [[unlikely]] { throw std::runtime_error("failed to find a suitable GPU!"); }
-
         vkGetPhysicalDeviceProperties(physicalDevice, &properties);
         LINFO("Dev count: {}", deviceCount);
         LINFO("API Ver: {}", properties.apiVersion);
         LINFO("Drv Ver: {}", properties.driverVersion);
         LINFO("Vendor ID: {}", properties.vendorID);
         LINFO("Phys Dev ID: {}", properties.deviceID);
-        LINFO("Phys Dev Name: phys dev{0}", properties.deviceName);
+        LINFO("Phys Dev Name: phys dev{}", properties.deviceName);
     }
 
     void Device::createLogicalDevice() {
@@ -190,12 +193,21 @@ namespace lve {
 
         // might not really be necessary anymore because device specific validation layers
         // have been deprecated
-        if(enableValidationLayers) {
+#ifdef NDEBUG
+        if(enableValidationLayers) [[unlikely]] {
             createInfo.enabledLayerCount = NC_UI32T(validationLayers.size());
             createInfo.ppEnabledLayerNames = validationLayers.data();
-        } else {
+        } else [[likely]] {
             createInfo.enabledLayerCount = 0;
         }
+#else
+        if(enableValidationLayers) [[likely]] {
+            createInfo.enabledLayerCount = NC_UI32T(validationLayers.size());
+            createInfo.ppEnabledLayerNames = validationLayers.data();
+        } else [[unlikely]] {
+            createInfo.enabledLayerCount = 0;
+        }
+#endif
 
         VK_CHECK(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device_), "failed to create logical device!");
 
@@ -206,11 +218,12 @@ namespace lve {
     void Device::createCommandPool() {
         const QueueFamilyIndices queueFamilyIndices = findPhysicalQueueFamilies();
 
+        // NOLINTBEGIN(*-signed-bitwise)
         VkCommandPoolCreateInfo poolInfo = {};
         poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
         poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT |
-                         VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;  // NOLINT(*-signed-bitwise)
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT | VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        // NOLINTEND(*-signed-bitwise)
 
         VK_CHECK(vkCreateCommandPool(device_, &poolInfo, nullptr, &commandPool), "failed to create command pool!");
     }
@@ -261,15 +274,8 @@ namespace lve {
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
         for(const char *layerName : validationLayers) {
-            bool layerFound = false;
-
-            for(const auto &[availablelayerName, availablespecVersion, availableimplementationVersion, availabledescription] :
-                availableLayers) {
-                if(strcmp(layerName, availablelayerName) == 0) {
-                    layerFound = true;
-                    break;
-                }
-            }
+            auto layerFound = std::ranges::any_of(
+                availableLayers, [layerName](const VkLayerProperties &layer) { return strcmp(layerName, layer.layerName) == 0; });
 
             if(!layerFound) { return false; }
         }
@@ -295,17 +301,17 @@ namespace lve {
         std::vector<VkExtensionProperties> extensions(extensionCount);
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-        LINFO("available extensions:");
+        // LINFO("available extensions:");
         std::unordered_set<std::string_view> available;
         for(const auto &[extensionName, specVersion] : extensions) {
-            LINFO("\t{0}", extensionName);
+            // LINFO("\t{0}", extensionName);
             available.emplace(extensionName);
         }
 
-        LINFO("required extensions:");
+        // LINFO("required extensions:");
         const auto requiredExtensions = getRequiredExtensions();
         for(const auto &required : requiredExtensions) {
-            LINFO("\t{0}", required);
+            // LINFO("\t{0}", required);
             if(!available.contains(required)) [[unlikely]] { throw std::runtime_error("Missing required glfw extension"); }
         }
     }
@@ -372,6 +378,10 @@ namespace lve {
         return details;
     }
 
+    bool matchesFeatures(const VkFormatFeatureFlags tilingFeatures, const VkFormatFeatureFlags features) {
+        return (tilingFeatures & features) == features;
+    }
+
     VkFormat Device::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
         for(const VkFormat format : candidates) {
             VkFormatProperties props;
@@ -389,8 +399,9 @@ namespace lve {
     uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags mproperties) {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+        const std::bitset<32> typeBits(typeFilter);
         for(uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-            if((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & mproperties) == mproperties) { return i; }
+            if(typeBits.test(i) && (memProperties.memoryTypes[i].propertyFlags & mproperties) == mproperties) { return i; }
         }
 
         throw std::runtime_error("failed to find suitable memory type!");

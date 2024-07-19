@@ -5,12 +5,14 @@
 #include "vulkrt/Model.hpp"
 
 namespace lve {
+    DISABLE_WARNINGS_PUSH(26432 26447)
     Model::Model(Device &device, const std::vector<Vertex> &vertices) noexcept : lveDevice{device} { createVertexBuffers(vertices); }
     Model::~Model() {
         vkDestroyBuffer(lveDevice.device(), vertexBuffer, nullptr);
         vkFreeMemory(lveDevice.device(), vertexBufferMemory, nullptr);
     }
-
+    DISABLE_WARNINGS_POP()
+    DISABLE_WARNINGS_PUSH(26446)
     std::vector<VkVertexInputBindingDescription> Model::Vertex::getBindingDescriptions() {
         std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
         bindingDescriptions[0].binding = 0;
@@ -31,12 +33,12 @@ namespace lve {
         attributeDescriptions[1].offset = offsetof(Vertex, color);
         return attributeDescriptions;
     }
-    void Model::bind(VkCommandBuffer commandBuffer) {
-        VkBuffer buffers[] = {vertexBuffer};
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
+    void Model::bind(VkCommandBuffer commandBuffer) noexcept {
+        const std::vector<VkBuffer> buffers = {vertexBuffer};
+        const std::vector<VkDeviceSize> offsets = {0};
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers.data(), offsets.data());
     }
-    void Model::draw(VkCommandBuffer commandBuffer) { vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0); }
+    void Model::draw(VkCommandBuffer commandBuffer) const noexcept { vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0); }
     void Model::createVertexBuffers(const std::vector<Vertex> &vertices) {
         vertexCount = C_UI32T(vertices.size());
         assert(vertexCount >= 3 && "Vertex count must be at least 3");
@@ -49,5 +51,5 @@ namespace lve {
         memcpy(data, vertices.data(), C_ST(bufferSize));
         vkUnmapMemory(lveDevice.device(), vertexBufferMemory);
     }
-
+    DISABLE_WARNINGS_POP()
 }  // namespace lve

@@ -2,7 +2,6 @@
 
 #include "vulkrt/Vulkrt.hpp"
 #include <internal_use_only/config.hpp>
-#include <vulkan/vulkan.h>
 
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main() {

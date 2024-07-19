@@ -8,7 +8,6 @@
 
 namespace lve {
 
-
     class Model {
     public:
         struct Vertex {
@@ -22,8 +21,8 @@ namespace lve {
         Model(const Model &) = delete;
         Model &operator=(const Model &) = delete;
 
-        void bind(VkCommandBuffer commandBuffer);
-        void draw(VkCommandBuffer commandBuffer);
+        void bind(VkCommandBuffer commandBuffer) noexcept;
+        void draw(VkCommandBuffer commandBuffer) const noexcept;
 
     private:
         void createVertexBuffers(const std::vector<Vertex> &vertices);
