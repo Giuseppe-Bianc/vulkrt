@@ -9,6 +9,7 @@ add_library(vulkrt-core Vulkrt.cpp
         Device.cpp
         SwapChain.cpp
         Model.cpp
+        ../../include/vulkrt/GameObject.hpp
 )
 
 

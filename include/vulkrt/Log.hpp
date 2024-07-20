@@ -30,7 +30,6 @@
  * @endcode
  */
 #pragma once
-// NOLINTBEGIN
 
 // clang-format off
 #include "disableWarn.hpp"
@@ -183,4 +182,3 @@ inline void my_error_handler(const std::string &msg) {
     } catch(const spdlog::spdlog_ex &ex) { std::cerr << "Logger initialization failed: " << ex.what() << std::endl; }
 
 /// @}
-// NOLINTEND

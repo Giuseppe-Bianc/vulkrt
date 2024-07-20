@@ -1,10 +1,12 @@
 //
 // Created by gbian on 18/07/2024.
 //
-
+// NOLINTBEGIN(*-include-cleaner)
 #pragma once
 
 #include "vulkanCheck.hpp"
+
+DISABLE_WARNINGS_PUSH(26429 26481)
 
 inline static void logQueueLabel(const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
                                  const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity) {
@@ -87,7 +89,7 @@ inline static void logObjects(const VkDebugUtilsMessengerCallbackDataEXT *pCallb
 }
 
 inline void logDebugValidationLayerInfo(const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-                                 const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity) {
+                                        const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity) {
     // Log queue labels if available
     logQueueLabel(pCallbackData, messageSeverity);
 
@@ -97,3 +99,5 @@ inline void logDebugValidationLayerInfo(const VkDebugUtilsMessengerCallbackDataE
     // Log objects if available
     logObjects(pCallbackData, messageSeverity);
 }
+DISABLE_WARNINGS_POP()
+// NOLINTEND(*-include-cleaner)

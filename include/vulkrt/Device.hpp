@@ -72,12 +72,12 @@ namespace lve {
 
         // helper functions
         [[nodiscard]] bool isDeviceSuitable(VkPhysicalDevice device);
-        [[nodiscard]] std::vector<const char *> getRequiredExtensions();
+        [[nodiscard]] std::vector<const char *> getRequiredExtensions() const;
         [[nodiscard]] bool checkValidationLayerSupport() const;
         [[nodiscard]] QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
         void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT &createInfo) const noexcept;
-        void hasGflwRequiredInstanceExtensions();
-        [[nodiscard]] bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+        void hasGflwRequiredInstanceExtensions() const;
+        [[nodiscard]] bool checkDeviceExtensionSupport(VkPhysicalDevice device) const;
         [[nodiscard]] SwapChainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
 
         VkInstance instance;

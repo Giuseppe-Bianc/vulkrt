@@ -5,12 +5,12 @@
  * It includes macros for formatting strings, pointers, and joining containers with delimiters.
  * @note This file requires the fmt library to be included separately.
  */
+// NOLINTBEGIN(*-include-cleaner)
 #pragma once
 
 #ifdef __cpp_lib_format
 #include <format>
 #endif
-// NOLINTBEGIN(*-include-cleaner)
 #if defined(__GNUC__) && (__GNUC__ >= 11)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-overflow"

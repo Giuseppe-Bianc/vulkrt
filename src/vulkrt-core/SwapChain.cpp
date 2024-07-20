@@ -1,7 +1,5 @@
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/SwapChain.hpp"
-
-//#include <utility>
 #include <vulkrt/timer/Timer.hpp>
 
 namespace lve {
@@ -165,7 +163,7 @@ namespace lve {
 
     void SwapChain::createImageViews() {
         swapChainImageViews.resize(swapChainImages.size());
-        for (const auto [i, image] : std::views::enumerate(swapChainImages)){
+        for(const auto [i, image] : std::views::enumerate(swapChainImages)) {
             VkImageViewCreateInfo viewInfo{};
             viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
             viewInfo.image = image;
@@ -377,8 +375,8 @@ namespace lve {
 
     VkFormat SwapChain::findDepthFormat() const {
 #ifdef INDEPTH
-        const vnd::AutoTimer timer{"findDepthFormat", vnd::Timer::Big};
 #endif
+        const vnd::AutoTimer timer{"findDepthFormat", vnd::Timer::Big};
         return device.findSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
                                           VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     }

@@ -53,7 +53,7 @@ namespace lve {
     void Pipeline::createGraphicsPipeline(const std::string &vertFilepath, const std::string &fragFilepath,
                                           const PipelineConfigInfo &configInfo) {
 #ifdef INDEPTH
-        const vnd::AutoTimer timer("createGraphicsPipeline");
+        const vnd::AutoTimer timer{"createGraphicsPipeline", vnd::Timer::Big};
 #endif
         assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipelineLayout provided in configInfo");
         assert(configInfo.renderPass != VK_NULL_HANDLE && "Cannot create graphics pipeline: no renderPass provided in configInfo");
@@ -120,7 +120,7 @@ namespace lve {
     }
     DISABLE_WARNINGS_POP()
 
-    void Pipeline::createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule) {
+    void Pipeline::createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule) const {
         VkShaderModuleCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
         createInfo.codeSize = code.size();

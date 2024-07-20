@@ -17,6 +17,16 @@ namespace lve {
         LINFO("CurTrns: {}", string_VkSurfaceTransformFlagBitsKHR(det.capabilities.currentTransform));
         LINFO("CmpAlpha: {}", string_VkCompositeAlphaFlagsKHR(det.capabilities.supportedCompositeAlpha));
         LINFO("Usage: {}", string_VkImageUsageFlags(det.capabilities.supportedUsageFlags));
+
+        // Print formats
+        LINFO("Available Surface Formats: {}", det.formats.size());
+        for(const auto &format : det.formats) {
+            LINFO("\tFormat: {}, Color Space: {}", string_VkFormat(format.format), string_VkColorSpaceKHR(format.colorSpace));
+        }
+
+        // Print present modes
+        LINFO("Available Present Modes: {}", det.presentModes.size());
+        for(const auto &presentMode : det.presentModes) { LINFO("\tPresent Mode: {}", string_VkPresentModeKHR(presentMode)); }
     }
 
     [[nodiscard]] inline static constexpr std::string_view debugCallbackString(VkDebugUtilsMessageTypeFlagsEXT messageType) noexcept {
@@ -274,8 +284,8 @@ namespace lve {
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
         for(const char *layerName : validationLayers) {
-            auto layerFound = std::ranges::any_of(
-                availableLayers, [layerName](const VkLayerProperties &layer) { return strcmp(layerName, layer.layerName) == 0; });
+            const auto layerFound = std::ranges::any_of(
+                availableLayers, [layerName](const VkLayerProperties &layer) noexcept { return strcmp(layerName, layer.layerName) == 0; });
 
             if(!layerFound) { return false; }
         }
@@ -283,7 +293,7 @@ namespace lve {
         return true;
     }
 
-    std::vector<const char *> Device::getRequiredExtensions() {
+    std::vector<const char *> Device::getRequiredExtensions() const {
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
@@ -294,7 +304,7 @@ namespace lve {
         return extensions;
     }
 
-    void Device::hasGflwRequiredInstanceExtensions() {
+    void Device::hasGflwRequiredInstanceExtensions() const {
         vnd::AutoTimer t{"hasGflwRequiredInstanceExtensions"};
         uint32_t extensionCount = 0;
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -316,7 +326,7 @@ namespace lve {
         }
     }
 
-    bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+    bool Device::checkDeviceExtensionSupport(VkPhysicalDevice device) const {
         uint32_t extensionCount;
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
@@ -378,7 +388,7 @@ namespace lve {
         return details;
     }
 
-    bool matchesFeatures(const VkFormatFeatureFlags tilingFeatures, const VkFormatFeatureFlags features) {
+    static constexpr bool matchesFeatures(const VkFormatFeatureFlags tilingFeatures, const VkFormatFeatureFlags features) noexcept {
         return (tilingFeatures & features) == features;
     }
 
@@ -387,13 +397,23 @@ namespace lve {
             VkFormatProperties props;
             vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
-            if(tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features) {
-                return format;
-            } else if(tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features) {
-                return format;
+            bool supported = false;
+
+            switch(tiling) {
+            case VK_IMAGE_TILING_LINEAR:
+                supported = (props.linearTilingFeatures & features) == features;
+                break;
+            case VK_IMAGE_TILING_OPTIMAL:
+                supported = (props.optimalTilingFeatures & features) == features;
+                break;
+            default:
+                break;
             }
+
+            if(supported) { return format; }
         }
-        throw std::runtime_error("failed to find supported format!");
+
+        throw std::runtime_error("Failed to find supported format!");
     }
 
     uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags mproperties) {

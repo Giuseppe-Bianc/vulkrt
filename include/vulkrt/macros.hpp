@@ -19,11 +19,10 @@
  * @endcode
  */
 #define SYSPAUSE()                                                                                                                         \
-do {                                                                                                                                   \
-LINFO("Press enter to exit...");                                                                                                   \
-std::cin.ignore();                                                                                                                 \
-} while(0);
-
+    do {                                                                                                                                   \
+        LINFO("Press enter to exit...");                                                                                                   \
+        std::cin.ignore();                                                                                                                 \
+    } while(0);
 
 [[nodiscard]] static constexpr auto calcolaCentro(const int &width, const int &w) noexcept { return (width - w) / 2; }
 #define CALC_CENTRO(width, w) calcolaCentro(width, w)
