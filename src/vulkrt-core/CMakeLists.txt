@@ -10,6 +10,14 @@ add_library(vulkrt-core Vulkrt.cpp
         SwapChain.cpp
         Model.cpp
         ../../include/vulkrt/GameObject.hpp
+        Renderer.cpp
+        ../../include/vulkrt/Renderer.hpp
+        SimpleRenderSystem.cpp
+        ../../include/vulkrt/SimpleRenderSystem.hpp
+        Camera.cpp
+        ../../include/vulkrt/Camera.hpp
+        KeyboardMovementController.cpp
+        ../../include/vulkrt/KeyboardMovementController.hpp
 )
 
 

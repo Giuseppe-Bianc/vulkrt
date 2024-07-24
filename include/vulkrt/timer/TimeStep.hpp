@@ -5,9 +5,9 @@
 #pragma once
 
 #include "../headers.hpp"
-#include "vulkrt/cast/BaseCast.hpp"
 #include "Times.hpp"
 #include "timeFactors.hpp"
+#include "vulkrt/cast/BaseCast.hpp"
 
 class Timestep {
 public:
@@ -15,6 +15,9 @@ public:
     explicit Timestep(const double time = 0.0) noexcept : m_Time(C_LD(time)) {}
     explicit Timestep(const long double time = 0.0L) noexcept : m_Time(time) {}
     explicit Timestep(const ch::duration<long double> &time) noexcept : m_Time(time.count()) {}
+    Timestep(const ch::time_point<std::chrono::steady_clock> &current_time,
+             const ch::time_point<std::chrono::steady_clock> &last_time) noexcept
+      : Timestep(current_time - last_time) {}
 
     explicit operator float() const noexcept { return C_F(m_Time); }
     explicit operator double() const noexcept { return C_D(m_Time); }

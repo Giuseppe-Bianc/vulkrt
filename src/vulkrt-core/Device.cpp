@@ -116,9 +116,11 @@ namespace lve {
     DISABLE_WARNINGS_POP()
 
     void Device::createInstance() {
+        DISABLE_WARNINGS_PUSH(4127)
         if(enableValidationLayers && !checkValidationLayerSupport()) [[unlikely]] {
             throw std::runtime_error("validation layers requested, but not available!");
         }
+        DISABLE_WARNINGS_POP()
 
         VkApplicationInfo appInfo = {};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -132,7 +134,7 @@ namespace lve {
         createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
         createInfo.pApplicationInfo = &appInfo;
 
-        auto extensions = getRequiredExtensions();
+        const auto extensions = getRequiredExtensions();
         createInfo.enabledExtensionCount = NC_UI32T(extensions.size());
         createInfo.ppEnabledExtensionNames = extensions.data();
 
@@ -284,10 +286,12 @@ namespace lve {
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
         for(const char *layerName : validationLayers) {
-            const auto layerFound = std::ranges::any_of(
-                availableLayers, [layerName](const VkLayerProperties &layer) noexcept { return strcmp(layerName, layer.layerName) == 0; });
-
-            if(!layerFound) { return false; }
+            if(const auto layerFound = std::ranges::any_of(
+                   availableLayers,
+                   [layerName](const VkLayerProperties &layer) noexcept { return strcmp(layerName, layer.layerName) == 0; });
+               !layerFound) {
+                return false;
+            }
         }
 
         return true;
@@ -295,7 +299,7 @@ namespace lve {
 
     std::vector<const char *> Device::getRequiredExtensions() const {
         uint32_t glfwExtensionCount = 0;
-        const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+        const auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
         std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
@@ -311,17 +315,16 @@ namespace lve {
         std::vector<VkExtensionProperties> extensions(extensionCount);
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, extensions.data());
 
-        // LINFO("available extensions:");
+        LINFO("available extensions:");
         std::unordered_set<std::string_view> available;
         for(const auto &[extensionName, specVersion] : extensions) {
-            // LINFO("\t{0}", extensionName);
+            LINFO("\t{0}", extensionName);
             available.emplace(extensionName);
         }
 
-        // LINFO("required extensions:");
-        const auto requiredExtensions = getRequiredExtensions();
-        for(const auto &required : requiredExtensions) {
-            // LINFO("\t{0}", required);
+        LINFO("required extensions:");
+        for(const auto requiredExtensions = getRequiredExtensions(); const auto &required : requiredExtensions) {
+            LINFO("\t{0}", required);
             if(!available.contains(required)) [[unlikely]] { throw std::runtime_error("Missing required glfw extension"); }
         }
     }
@@ -350,7 +353,7 @@ namespace lve {
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
         for(const auto &[i, queueFamily] : std::views::enumerate(queueFamilies)) {
-            if(queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            if(queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) { // NOLINT(*-signed-bitwise)
                 indices.graphicsFamily = C_UI32T(i);
                 indices.graphicsFamilyHasValue = true;
             }
@@ -370,7 +373,7 @@ namespace lve {
         SwapChainSupportDetails details;
         vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface_, &details.capabilities);
 
-        uint32_t formatCount;
+        uint32_t formatCount{};
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, nullptr);
 
         if(formatCount != 0) {
@@ -378,7 +381,7 @@ namespace lve {
             vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, details.formats.data());
         }
 
-        uint32_t presentModeCount;
+        uint32_t presentModeCount{};
         vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, nullptr);
 
         if(presentModeCount != 0) {
@@ -388,9 +391,9 @@ namespace lve {
         return details;
     }
 
-    static constexpr bool matchesFeatures(const VkFormatFeatureFlags tilingFeatures, const VkFormatFeatureFlags features) noexcept {
+    /*static constexpr bool matchesFeatures(const VkFormatFeatureFlags tilingFeatures, const VkFormatFeatureFlags features) noexcept {
         return (tilingFeatures & features) == features;
-    }
+    }*/
 
     VkFormat Device::findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
         for(const VkFormat format : candidates) {
@@ -416,7 +419,7 @@ namespace lve {
         throw std::runtime_error("Failed to find supported format!");
     }
 
-    uint32_t Device::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags mproperties) {
+    uint32_t Device::findMemoryType(uint32_t typeFilter,const VkMemoryPropertyFlags &mproperties) {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
         const std::bitset<32> typeBits(typeFilter);
@@ -482,8 +485,8 @@ namespace lve {
         vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
     }
 
-    void Device::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept {
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands();
+    void Device::copyBuffer(const VkBuffer &srcBuffer,const VkBuffer &dstBuffer, VkDeviceSize size) noexcept {
+        const VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
         VkBufferCopy copyRegion{};
         copyRegion.srcOffset = 0;  // Optional
@@ -494,7 +497,7 @@ namespace lve {
         endSingleTimeCommands(commandBuffer);
     }
 
-    void Device::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept {
+    void Device::copyBufferToImage(const VkBuffer &buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept {
         const VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
         VkBufferImageCopy region{};

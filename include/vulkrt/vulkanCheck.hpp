@@ -3,7 +3,7 @@
 //
 
 #pragma once
-
+// NOLINTBEGIN(*-avoid-do-while)
 #include "headers.hpp"
 
 // vulkan headers
@@ -46,3 +46,4 @@
             throw std::runtime_error(trowable);                                                                                            \
         }                                                                                                                                  \
     } while(0)
+// NOLINTEND(*-avoid-do-while)

@@ -78,6 +78,7 @@ static inline constexpr auto HALF_PID = NC_D(PI / 2);
 static inline constexpr auto MAXDBL = std::numeric_limits<double>::max();
 static inline constexpr auto MAXU32 = std::numeric_limits<std::uint32_t>::max();
 static inline constexpr auto MAXU64 = std::numeric_limits<std::uint64_t>::max();
+static inline constexpr auto FLOATEPS = std::numeric_limits<float>::epsilon();
 static inline constexpr const auto *CNL = "\n";
 static inline constexpr const auto *CCR = "\r";
 static inline constexpr auto NL = CNL[0];

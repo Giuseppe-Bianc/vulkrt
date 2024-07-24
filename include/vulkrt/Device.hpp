@@ -9,7 +9,7 @@ namespace lve {
         VkSurfaceCapabilitiesKHR capabilities{};
         std::vector<VkSurfaceFormatKHR> formats;
         std::vector<VkPresentModeKHR> presentModes;
-        static void printDetails(const SwapChainSupportDetails &swapCainsDetails);
+        static void printDetails(const SwapChainSupportDetails &det);
     };
 
     struct QueueFamilyIndices {
@@ -44,7 +44,7 @@ namespace lve {
         [[nodiscard]] VkQueue presentQueue() const noexcept { return presentQueue_; }
 
         [[nodiscard]] SwapChainSupportDetails getSwapChainSupport() { return querySwapChainSupport(physicalDevice); }
-        [[nodiscard]] uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+        [[nodiscard]] uint32_t findMemoryType(uint32_t typeFilter,const VkMemoryPropertyFlags &properties);
         [[nodiscard]] QueueFamilyIndices findPhysicalQueueFamilies() { return findQueueFamilies(physicalDevice); }
         [[nodiscard]] VkFormat findSupportedFormat(const std::vector<VkFormat> &candidates, VkImageTiling tiling,
                                                    VkFormatFeatureFlags features);
@@ -54,8 +54,8 @@ namespace lve {
                           VkDeviceMemory &bufferMemory);
         [[nodiscard]] VkCommandBuffer beginSingleTimeCommands() noexcept;
         void endSingleTimeCommands(VkCommandBuffer commandBuffer) noexcept;
-        void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) noexcept;
-        void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept;
+        void copyBuffer(const VkBuffer &srcBuffer,const VkBuffer &dstBuffer, VkDeviceSize size) noexcept;
+        void copyBufferToImage(const VkBuffer &buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept;
 
         void createImageWithInfo(const VkImageCreateInfo &imageInfo, VkMemoryPropertyFlags properties, VkImage &image,
                                  VkDeviceMemory &imageMemory);

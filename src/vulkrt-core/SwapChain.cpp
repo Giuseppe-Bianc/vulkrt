@@ -1,4 +1,4 @@
-// NOLINTBEGIN(*-include-cleaner)
+// NOLINTBEGIN(*-include-cleaner *-signed-bitwise)
 #include "vulkrt/SwapChain.hpp"
 #include <vulkrt/timer/Timer.hpp>
 
@@ -216,13 +216,12 @@ namespace lve {
         subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
         VkSubpassDependency dependency = {};
-
         dependency.dstSubpass = 0;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+        dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
         dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
         dependency.srcAccessMask = 0;
-        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
 
         std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
         VkRenderPassCreateInfo renderPassInfo = {};
@@ -263,6 +262,7 @@ namespace lve {
 
     void SwapChain::createDepthResources() {
         const VkFormat depthFormat = findDepthFormat();
+        swapChainDepthFormat = depthFormat;
         const VkExtent2D swapChainExtentm = getSwapChainExtent();
 
         depthImages.resize(imageCount());
@@ -342,17 +342,17 @@ namespace lve {
         const vnd::AutoTimer timer{"chooseSwapPresentMode", vnd::Timer::Big};
 #endif
         // Prefer VK_PRESENT_MODE_MAILBOX_KHR if available
-        if(std::ranges::find(availablePresentModes, VK_PRESENT_MODE_MAILBOX_KHR) != availablePresentModes.end()) {
-            LINFO("Present mode: Mailbox");
-            return VK_PRESENT_MODE_MAILBOX_KHR;
-        }
+        // if(std::ranges::find(availablePresentModes, VK_PRESENT_MODE_MAILBOX_KHR) != availablePresentModes.end()) {
+        //     LINFO("Present mode: Mailbox");
+        //     return VK_PRESENT_MODE_MAILBOX_KHR;
+        // }
 
         // Fallback to VK_PRESENT_MODE_IMMEDIATE_KHR if needed
         // This code is commented out in your example, but if you want to enable it, you can use the following:
-        // if (std::ranges::find(availablePresentModes, VK_PRESENT_MODE_IMMEDIATE_KHR) != availablePresentModes.end()) {
-        //     LINFO("Present mode: Immediate");
-        //     return VK_PRESENT_MODE_IMMEDIATE_KHR;
-        // }
+        if (std::ranges::find(availablePresentModes, VK_PRESENT_MODE_IMMEDIATE_KHR) != availablePresentModes.end()) {
+            LINFO("Present mode: Immediate");
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
 
         // Default to VK_PRESENT_MODE_FIFO_KHR (V-Sync)
         LINFO("Present mode: V-Sync");
@@ -375,12 +375,12 @@ namespace lve {
 
     VkFormat SwapChain::findDepthFormat() const {
 #ifdef INDEPTH
-#endif
         const vnd::AutoTimer timer{"findDepthFormat", vnd::Timer::Big};
+#endif
         return device.findSupportedFormat({VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
                                           VK_IMAGE_TILING_OPTIMAL, VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     }
     DISABLE_WARNINGS_POP()
 }  // namespace lve
 
-// NOLINTEND(*-include-cleaner)
+// NOLINTEND(*-include-cleaner *-signed-bitwise)

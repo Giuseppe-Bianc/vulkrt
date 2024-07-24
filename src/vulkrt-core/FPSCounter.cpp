@@ -8,7 +8,7 @@
 DISABLE_WARNINGS_PUSH(26447)
 
 FPSCounter::FPSCounter(GLFWwindow *window, std::string_view title) noexcept
-  : last_time(clock::now()), frames(0), fps(0.0L), ms_per_frame(0.0L), m_window(window), m_title(title) {}
+  : last_time(clock::now()), frames(0), fps(0.0L), ms_per_frame(0.0L), m_window(window), m_title(title), frameTime(0.0L), totalTime(0.0L) {}
 
 std::string FPSCounter::transformTime(const long double inputTimeMilli) const noexcept {
     const auto &[ms, us, ns] = vnd::ValueLable::calculateTransformTimeMilli(inputTimeMilli);
@@ -29,12 +29,16 @@ void FPSCounter::updateFPS() noexcept {
     frames++;
     const auto ldframes = C_LD(frames);
     const auto current_time = clock::now();
-    const auto &time_step = Timestep(current_time - last_time);
-    if(const auto &time_steps = time_step.GetSeconds(); time_steps >= 1.0L) {
-        last_time = current_time;
-        fps = ldframes / time_steps;
+    const auto &time_step = Timestep(current_time, last_time);
+    last_time = current_time;
+    frameTime = time_step.GetSeconds();
+    totalTime += frameTime;
+
+    if(totalTime >= 1.0L) {
+        fps = ldframes / totalTime;
         ms_per_frame = time_step.GetMilliseconds() / ldframes;
         frames = 0;
+        totalTime = 0;
     }
     ms_per_frameComposition = transformTime(ms_per_frame);
 }

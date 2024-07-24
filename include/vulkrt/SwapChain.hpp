@@ -30,6 +30,10 @@ namespace lve {
 
         [[nodiscard]] VkResult acquireNextImage(uint32_t *imageIndex) const noexcept;
         [[nodiscard]] VkResult submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex);
+        [[nodiscard]] bool compareSwapFormats(const SwapChain &swapChainm) const noexcept {
+            return swapChainm.swapChainDepthFormat == swapChainDepthFormat &&
+                   swapChainm.swapChainImageFormat == swapChainImageFormat;
+        }
         DISABLE_WARNINGS_POP()
 
     private:
@@ -47,6 +51,7 @@ namespace lve {
         [[nodiscard]] VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities) const noexcept;
 
         VkFormat swapChainImageFormat;
+        VkFormat swapChainDepthFormat;
         VkExtent2D swapChainExtent;
 
         std::vector<VkFramebuffer> swapChainFramebuffers;
