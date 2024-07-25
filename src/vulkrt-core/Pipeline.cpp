@@ -18,9 +18,10 @@ namespace lve {
     }
 
     Pipeline::~Pipeline() {
-        vkDestroyShaderModule(lveDevice.device(), vertShaderModule, nullptr);
-        vkDestroyShaderModule(lveDevice.device(), fragShaderModule, nullptr);
-        vkDestroyPipeline(lveDevice.device(), graphicsPipeline, nullptr);
+        const auto device_device = lveDevice.device();
+        vkDestroyShaderModule(device_device, vertShaderModule, nullptr);
+        vkDestroyShaderModule(device_device, fragShaderModule, nullptr);
+        vkDestroyPipeline(device_device, graphicsPipeline, nullptr);
     }
 
     std::vector<char> Pipeline::readFile(const std::string &filename) {
@@ -68,6 +69,7 @@ namespace lve {
 
         createShaderModule(vertCode, &vertShaderModule);
         createShaderModule(fragCode, &fragShaderModule);
+        const auto device_device = lveDevice.device();
 
         std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
         shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -112,11 +114,20 @@ namespace lve {
         pipelineInfo.renderPass = configInfo.renderPass;
         pipelineInfo.subpass = configInfo.subpass;
 
+        // Enable pipeline cache
+        VkPipelineCache pipelineCache = VK_NULL_HANDLE;
+        VkPipelineCacheCreateInfo pipelineCacheInfo{};
+        pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
+        vkCreatePipelineCache(device_device, &pipelineCacheInfo, nullptr, &pipelineCache);
+
         pipelineInfo.basePipelineIndex = -1;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        VK_CHECK(vkCreateGraphicsPipelines(lveDevice.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline),
+        VK_CHECK(vkCreateGraphicsPipelines(device_device, pipelineCache, 1, &pipelineInfo, nullptr, &graphicsPipeline),
                  "failed to create graphics pipeline");
+
+        // Destroy pipeline cache after creation
+        vkDestroyPipelineCache(device_device, pipelineCache, nullptr);
     }
     DISABLE_WARNINGS_POP()
 

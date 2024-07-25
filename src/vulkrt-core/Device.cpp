@@ -279,22 +279,20 @@ namespace lve {
     }
 
     bool Device::checkValidationLayerSupport() const {
+#ifdef INDEPTH
+        vnd::AutoTimer t{"checkValidationLayerSupport", vnd::Timer::Big};
+#endif
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
         std::vector<VkLayerProperties> availableLayers(layerCount);
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        for(const char *layerName : validationLayers) {
-            if(const auto layerFound = std::ranges::any_of(
-                   availableLayers,
-                   [layerName](const VkLayerProperties &layer) noexcept { return strcmp(layerName, layer.layerName) == 0; });
-               !layerFound) {
-                return false;
-            }
-        }
-
-        return true;
+        return std::ranges::all_of(validationLayers, [&availableLayers](const char *const &layerName) noexcept {
+            return std::ranges::any_of(availableLayers, [layerName](const VkLayerProperties &layerProperties) noexcept {
+                return strcmp(layerName, layerProperties.layerName) == 0;
+            });
+        });
     }
 
     std::vector<const char *> Device::getRequiredExtensions() const {
@@ -309,7 +307,9 @@ namespace lve {
     }
 
     void Device::hasGflwRequiredInstanceExtensions() const {
-        vnd::AutoTimer t{"hasGflwRequiredInstanceExtensions"};
+#ifdef INDEPTH
+        vnd::AutoTimer t{"hasGflwRequiredInstanceExtensions", vnd::Timer::Big};
+#endif
         uint32_t extensionCount = 0;
         vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
         std::vector<VkExtensionProperties> extensions(extensionCount);
@@ -353,7 +353,7 @@ namespace lve {
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
         for(const auto &[i, queueFamily] : std::views::enumerate(queueFamilies)) {
-            if(queueFamily.queueCount > 0 && queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) { // NOLINT(*-signed-bitwise)
+            if(queueFamily.queueCount > 0 && C_BOOL(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {  // NOLINT(*-signed-bitwise)
                 indices.graphicsFamily = C_UI32T(i);
                 indices.graphicsFamilyHasValue = true;
             }
@@ -419,7 +419,7 @@ namespace lve {
         throw std::runtime_error("Failed to find supported format!");
     }
 
-    uint32_t Device::findMemoryType(uint32_t typeFilter,const VkMemoryPropertyFlags &mproperties) {
+    uint32_t Device::findMemoryType(uint32_t typeFilter, const VkMemoryPropertyFlags &mproperties) {
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
         const std::bitset<32> typeBits(typeFilter);
@@ -485,7 +485,7 @@ namespace lve {
         vkFreeCommandBuffers(device_, commandPool, 1, &commandBuffer);
     }
 
-    void Device::copyBuffer(const VkBuffer &srcBuffer,const VkBuffer &dstBuffer, VkDeviceSize size) noexcept {
+    void Device::copyBuffer(const VkBuffer &srcBuffer, const VkBuffer &dstBuffer, VkDeviceSize size) noexcept {
         const VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
         VkBufferCopy copyRegion{};

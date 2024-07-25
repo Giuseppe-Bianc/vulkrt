@@ -55,7 +55,7 @@ namespace lve {
     class GameObject {
     public:
         using id_t = unsigned int;
-        static GameObject createGameObject() {
+        static GameObject createGameObject() noexcept {
             static id_t currentId = 0;
             return GameObject{currentId++};
         }

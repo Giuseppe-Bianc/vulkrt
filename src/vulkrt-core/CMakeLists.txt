@@ -81,6 +81,28 @@ find_program(GLSL_VALIDATOR glslangValidator HINTS
         $ENV{VULKAN_SDK}/Bin32/
 )
 
+
+find_program(SPIRV_OPT spirv-opt HINTS
+        ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
+        /usr/bin
+        /usr/local/bin
+        ${VULKAN_SDK_PATH}/Bin
+        ${VULKAN_SDK_PATH}/Bin32
+        $ENV{VULKAN_SDK}/Bin/
+        $ENV{VULKAN_SDK}/Bin32/
+)
+
+find_program(SPIRV_REMAP spirv-remap HINTS
+        ${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}
+        /usr/bin
+        /usr/local/bin
+        ${VULKAN_SDK_PATH}/Bin
+        ${VULKAN_SDK_PATH}/Bin32
+        $ENV{VULKAN_SDK}/Bin/
+        $ENV{VULKAN_SDK}/Bin32/
+)
+
+
 # get all .vert and .frag files in shaders directory
 file(GLOB_RECURSE GLSL_SOURCE_FILES
         "${PROJECT_SOURCE_DIR}/shaders/*.frag"
@@ -96,6 +118,29 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
           DEPENDS ${GLSL})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
+
+foreach (BSPIRV ${SPIRV_BINARY_FILES})
+  get_filename_component(FILE_NAME  ${BSPIRV} NAME_WLE)
+  set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.opt.spv")
+  add_custom_command(
+          OUTPUT ${SPIRV}
+          COMMAND ${SPIRV_OPT} ${BSPIRV} -o ${SPIRV}  -O
+          DEPENDS ${BSPIRV})
+  list(APPEND SPIRV_BINARY_FILES_OPT ${SPIRV})
+endforeach (BSPIRV)
+
+foreach (RSPIRV ${SPIRV_BINARY_FILES_OPT})
+  get_filename_component(FILE_NAME  ${RSPIRV} NAME_WLE)
+  set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.rmp.spv")
+  add_custom_command(
+          OUTPUT ${SPIRV}
+          COMMAND ${SPIRV_REMAP} -v --do-everything  -i  ${RSPIRV} -o ${SPIRV}
+          DEPENDS ${RSPIRV})
+  list(APPEND SPIRV_BINARY_FILES_REMAP ${SPIRV})
+endforeach (RSPIRV)
+
+list(APPEND SPIRV_BINARY_FILES ${SPIRV_BINARY_FILES_OPT})
+list(APPEND SPIRV_BINARY_FILES ${SPIRV_BINARY_FILES_REMAP})
 
 add_custom_target(
         Shaders

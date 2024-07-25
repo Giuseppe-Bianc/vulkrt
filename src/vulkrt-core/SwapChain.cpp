@@ -22,45 +22,49 @@ namespace lve {
     }
 
     SwapChain::~SwapChain() {
-        for(auto *imageView : swapChainImageViews) { vkDestroyImageView(device.device(), imageView, nullptr); }
+        const auto device_device = device.device();
+        for(auto *imageView : swapChainImageViews) { vkDestroyImageView(device_device, imageView, nullptr); }
         swapChainImageViews.clear();
 
         if(swapChain != nullptr) {
-            vkDestroySwapchainKHR(device.device(), swapChain, nullptr);
+            vkDestroySwapchainKHR(device_device, swapChain, nullptr);
             swapChain = nullptr;
         }
 
         for(int i = 0; i < depthImages.size(); i++) {
-            vkDestroyImageView(device.device(), depthImageViews[i], nullptr);
-            vkDestroyImage(device.device(), depthImages[i], nullptr);
-            vkFreeMemory(device.device(), depthImageMemorys[i], nullptr);
+            vkDestroyImageView(device_device, depthImageViews[i], nullptr);
+            vkDestroyImage(device_device, depthImages[i], nullptr);
+            vkFreeMemory(device_device, depthImageMemorys[i], nullptr);
         }
 
-        for(auto *const framebuffer : swapChainFramebuffers) { vkDestroyFramebuffer(device.device(), framebuffer, nullptr); }
+        for(auto *const framebuffer : swapChainFramebuffers) { vkDestroyFramebuffer(device_device, framebuffer, nullptr); }
 
-        vkDestroyRenderPass(device.device(), renderPass, nullptr);
+        vkDestroyRenderPass(device_device, renderPass, nullptr);
 
         // cleanup synchronization objects
         for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            vkDestroySemaphore(device.device(), renderFinishedSemaphores[i], nullptr);
-            vkDestroySemaphore(device.device(), imageAvailableSemaphores[i], nullptr);
-            vkDestroyFence(device.device(), inFlightFences[i], nullptr);
+            vkDestroySemaphore(device_device, renderFinishedSemaphores[i], nullptr);
+            vkDestroySemaphore(device_device, imageAvailableSemaphores[i], nullptr);
+            vkDestroyFence(device_device, inFlightFences[i], nullptr);
         }
     }
 
     VkResult SwapChain::acquireNextImage(uint32_t *imageIndex) const noexcept {
-        vkWaitForFences(device.device(), 1, &inFlightFences[currentFrame], VK_TRUE, MAXU64);
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"acquireNextImage", vnd::Timer::Big};
+#endif
+        const auto device_device = device.device();
+        vkWaitForFences(device_device, 1, &inFlightFences[currentFrame], VK_TRUE, MAXU64);
 
-        const VkResult result = vkAcquireNextImageKHR(device.device(), swapChain, MAXU64,
-                                                      imageAvailableSemaphores[currentFrame],  // must be a not signaled semaphore
-                                                      VK_NULL_HANDLE, imageIndex);
-
-        return result;
+        return vkAcquireNextImageKHR(device_device, swapChain, MAXU64,
+                                     imageAvailableSemaphores[currentFrame],  // must be a not signaled semaphore
+                                     VK_NULL_HANDLE, imageIndex);
     }
 
     VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex) {
+        const auto device_device = device.device();
         if(imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
-            vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
+            vkWaitForFences( device_device, 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
         }
         imagesInFlight[*imageIndex] = inFlightFences[currentFrame];
 
@@ -80,7 +84,7 @@ namespace lve {
         submitInfo.signalSemaphoreCount = 1;
         submitInfo.pSignalSemaphores = signalSemaphores.data();
 
-        vkResetFences(device.device(), 1, &inFlightFences[currentFrame]);
+        vkResetFences( device_device, 1, &inFlightFences[currentFrame]);
         VK_CHECK(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
                  "failed to submit draw command buffer!");
 
@@ -104,6 +108,7 @@ namespace lve {
     }
 
     void SwapChain::createSwapChain() {
+        const auto device_device = device.device();
         const SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
         const VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -147,15 +152,15 @@ namespace lve {
 
         createInfo.oldSwapchain = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
 
-        VK_CHECK(vkCreateSwapchainKHR(device.device(), &createInfo, nullptr, &swapChain), "failed to create swap chain!");
+        VK_CHECK(vkCreateSwapchainKHR( device_device, &createInfo, nullptr, &swapChain), "failed to create swap chain!");
 
         // we only specified a minimum number of images in the swap chain, so the implementation is
         // allowed to create a swap chain with more. That's why we'll first query the final number of
         // images with vkGetSwapchainImagesKHR, then resize the container and finally call it again to
         // retrieve the handles.
-        vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
+        vkGetSwapchainImagesKHR(device_device, swapChain, &imageCount, nullptr);
         swapChainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, swapChainImages.data());
+        vkGetSwapchainImagesKHR(device_device, swapChain, &imageCount, swapChainImages.data());
 
         swapChainImageFormat = surfaceFormat.format;
         swapChainExtent = extent;
@@ -261,13 +266,17 @@ namespace lve {
     }
 
     void SwapChain::createDepthResources() {
+#ifdef INDEPTH
+        const vnd::AutoTimer timer{"createDepthResources", vnd::Timer::Big};
+#endif
+        const auto imagectn = imageCount();
         const VkFormat depthFormat = findDepthFormat();
         swapChainDepthFormat = depthFormat;
         const VkExtent2D swapChainExtentm = getSwapChainExtent();
 
-        depthImages.resize(imageCount());
-        depthImageMemorys.resize(imageCount());
-        depthImageViews.resize(imageCount());
+        depthImages.resize(imagectn);
+        depthImageMemorys.resize(imagectn);
+        depthImageViews.resize(imagectn);
 
         for(int i = 0; i < depthImages.size(); i++) {
             VkImageCreateInfo imageInfo{};
@@ -304,6 +313,7 @@ namespace lve {
     }
 
     void SwapChain::createSyncObjects() {
+        const auto device_device = device.device();
         imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
         inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
@@ -317,9 +327,9 @@ namespace lve {
         fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
         for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-            VK_CHECK_SYNC_OBJECTS(vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
-                                  vkCreateSemaphore(device.device(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
-                                  vkCreateFence(device.device(), &fenceInfo, nullptr, &inFlightFences[i]),
+            VK_CHECK_SYNC_OBJECTS(vkCreateSemaphore(device_device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]),
+                                  vkCreateSemaphore(device_device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]),
+                                  vkCreateFence(device_device, &fenceInfo, nullptr, &inFlightFences[i]),
                                   "failed to create synchronization objects for a frame!");
         }
     }
@@ -349,7 +359,7 @@ namespace lve {
 
         // Fallback to VK_PRESENT_MODE_IMMEDIATE_KHR if needed
         // This code is commented out in your example, but if you want to enable it, you can use the following:
-        if (std::ranges::find(availablePresentModes, VK_PRESENT_MODE_IMMEDIATE_KHR) != availablePresentModes.end()) {
+        if(std::ranges::find(availablePresentModes, VK_PRESENT_MODE_IMMEDIATE_KHR) != availablePresentModes.end()) {
             LINFO("Present mode: Immediate");
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
         }
