@@ -9,8 +9,8 @@
 namespace lve {
     DISABLE_WARNINGS_PUSH(4324)
     struct SimplePushConstantData {
-        glm::mat4 transform{1.0f};
-        alignas(16) glm::vec3 color;
+        glm::mat4 transform{1.0F};
+        glm::mat4 normalMatrix{1.0F};
     };
     DISABLE_WARNINGS_POP()
     DISABLE_WARNINGS_PUSH(26432 26447)
@@ -21,29 +21,6 @@ namespace lve {
 
     SimpleRenderSystem::~SimpleRenderSystem() { vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr); }
     DISABLE_WARNINGS_POP()
-
-    /*void sierpinski(
-    std::vector<Model::Vertex> &vertices,
-    int depth,
-    const Model::Vertex& left,
-    const Model::Vertex& right,
-    const Model::Vertex& top) {
-        if (depth <= 0) {
-            vertices.emplace_back(top);
-            vertices.emplace_back(right);
-            vertices.emplace_back(left);
-        } else {
-            auto leftTopP = 0.5f * (left.position + top.position);
-            auto rightTopP = 0.5f * (right.position + top.position);
-            auto leftRightP = 0.5f * (left.position + right.position);
-            auto leftTopC = 0.5f * (left.color + top.color);
-            auto rightTopC = 0.5f * (right.color + top.color);
-            auto leftRightC = 0.5f * (left.color + right.color);
-            sierpinski(vertices, depth - 1, left, {leftRightP, leftRightC}, {leftTopP,leftTopC});
-            sierpinski(vertices, depth - 1, {leftRightP, leftRightC}, right, {rightTopP, rightTopC});
-            sierpinski(vertices, depth - 1, {leftTopP, leftTopC}, {rightTopP, rightTopC}, top);
-        }
-    }*/
 
     void SimpleRenderSystem::createPipelineLayout() {
         VkPushConstantRange pushConstantRange{};
@@ -80,23 +57,24 @@ namespace lve {
     static inline constexpr float DELTA_Y = 0.01F;
     static inline constexpr float DELAT_X = 0.005f;
 
-    void SimpleRenderSystem::renderGameObjects(VkCommandBuffer commandBuffer, std::vector<GameObject> &gameObjects, const Camera &camera) {
-        lvePipeline->bind(commandBuffer);
+    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<GameObject> &gameObjects) {
+        lvePipeline->bind(frameInfo.commandBuffer);
 
-        const auto projectionView = camera.getProjection() * camera.getView();
+        const auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
 
         for(auto &obj : gameObjects) {
             SimplePushConstantData push{};
-            push.color = obj.color;
+            const auto modelMatrix = obj.transform.mat4();
+            push.transform = projectionView * modelMatrix;
+            push.normalMatrix = obj.transform.normalMatrix();
 
-            push.transform = projectionView * obj.transform.mat4();
-
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
+            vkCmdPushConstants(frameInfo.commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
                                sizeof(SimplePushConstantData), &push);
-            obj.model->bind(commandBuffer);
-            obj.model->draw(commandBuffer);
+            obj.model->bind(frameInfo.commandBuffer);
+            obj.model->draw(frameInfo.commandBuffer);
         }
     }
+
     DISABLE_WARNINGS_POP()
 
 }  // namespace lve

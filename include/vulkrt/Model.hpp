@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Device.hpp"
+#include "Buffer.hpp"
 
 namespace lve {
 
@@ -31,7 +32,7 @@ namespace lve {
         };
 
         Model(Device &device, const Model::Builder &builder) noexcept;
-        ~Model();
+        ~Model() = default;
         Model(const Model &) = delete;
         Model &operator=(const Model &) = delete;
 
@@ -46,13 +47,11 @@ namespace lve {
 
         Device &lveDevice;
 
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
+        std::unique_ptr<Buffer> vertexBuffer;
         uint32_t vertexCount;
 
         bool hasIndexBuffer = false;
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
+        std::unique_ptr<Buffer> indexBuffer;
         uint32_t indexCount;
     };
 

@@ -13,7 +13,7 @@ namespace lve {
     class App {
     public:
         App() noexcept;
-        ~App();
+        ~App() = default;
         App(const App &) = delete;
         App &operator=(const App &) = delete;
         void run();
