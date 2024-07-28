@@ -66,6 +66,9 @@ namespace fs = std::filesystem;
 namespace ch = std::chrono;
 
 DISABLE_WARNINGS_PUSH(26481)
+DISABLE_WARNINGS_PUSH(26426)
+static inline const auto curentP = fs::current_path();
+DISABLE_WARNINGS_POP()
 static inline constexpr std::string_view WTITILE = "Hello vulkrt!";
 static inline constexpr std::size_t factor = 80;
 static inline constexpr auto WWIDTH = 16 * factor;

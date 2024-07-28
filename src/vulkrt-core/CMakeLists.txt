@@ -48,6 +48,7 @@ target_link_libraries(vulkrt-core PUBLIC
         spdlog::spdlog
         glm::glm
         glfw
+        tinyobjloader
 )
 
 target_include_directories(vulkrt-core ${WARNING_GUARD} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>

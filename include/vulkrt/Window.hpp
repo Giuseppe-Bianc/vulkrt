@@ -23,7 +23,8 @@ namespace lve {
 
         [[nodiscard]] GLFWwindow *getGLFWWindow() const noexcept { return window; }
         [[nodiscard]] bool shouldClose() const noexcept { return glfwWindowShouldClose(window); }
-        [[nodiscard]] static fs::path calculateRelativePathToSrcRes(const fs::path &executablePath, const fs::path &targetFile);
+        [[nodiscard]] static fs::path calculateRelativePathToSrcShaders(const fs::path &executablePath, const fs::path &targetFile);
+        [[nodiscard]] static fs::path calculateRelativePathToSrcModels(const fs::path &executablePath, const fs::path &targetFile);
         void createWindowSurface(VkInstance instance, VkSurfaceKHR *surface);
         [[nodiscard]] VkExtent2D getExtent() const noexcept { return {C_UI32T(width), C_UI(height)}; }
         [[nodiscard]] bool wasWindowResized() noexcept { return framebufferResized; }

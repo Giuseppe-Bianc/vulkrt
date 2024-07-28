@@ -69,9 +69,9 @@ namespace lve {
         Pipeline::defaultPipelineConfigInfo(pipelineConfig);
         pipelineConfig.renderPass = renderPass;
         pipelineConfig.pipelineLayout = pipelineLayout;
-        const auto vertPath = Window::calculateRelativePathToSrcRes(curent, "simple_shader.vert.opt.rmp.spv").string();
+        const auto vertPath = Window::calculateRelativePathToSrcShaders(curentP, "simple_shader.vert.opt.rmp.spv").string();
         // TODO: return to .frag.vert
-        const auto fragPath = Window::calculateRelativePathToSrcRes(curent, "simple_shader.frag.opt.rmp.spv").string();
+        const auto fragPath = Window::calculateRelativePathToSrcShaders(curentP, "simple_shader.frag.opt.rmp.spv").string();
         lvePipeline = MAKE_UNIQUE(Pipeline, lveDevice, vertPath, fragPath, pipelineConfig);
     }
 

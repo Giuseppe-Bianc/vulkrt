@@ -9,9 +9,6 @@
 #include "Pipeline.hpp"
 
 namespace lve {
-    DISABLE_WARNINGS_PUSH(26426)
-    static inline const auto curent = fs::current_path();
-    DISABLE_WARNINGS_POP()
 
     class SimpleRenderSystem {
     public:

@@ -3,8 +3,23 @@
 //
 // NOLINTBEGIN(*-include-cleaner)
 #include "vulkrt/Model.hpp"
+#include "vulkrt/Util.hpp"
+#include "vulkrt/tiny_obj_loader.h"
+
+#include <vulkrt/timer/Timer.hpp>
+
+namespace std {
+    template <> struct hash<lve::Model::Vertex> {
+        size_t operator()(lve::Model::Vertex const &vertex) const noexcept {
+            size_t seed = 0;
+            lve::hashCombine(seed, vertex.position, vertex.color, vertex.normal, vertex.uv);
+            return seed;
+        }
+    };
+}  // namespace std
 
 namespace lve {
+    static inline constexpr auto defaultColor=glm::vec3{1.f, 1.f, 1.f};
     DISABLE_WARNINGS_PUSH(26432 26447)
     Model::Model(Device &device, const Model::Builder &builder) noexcept : lveDevice{device} {
         createVertexBuffers(builder.vertices);
@@ -54,6 +69,14 @@ namespace lve {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
         }
     }
+
+    std::unique_ptr<Model> Model::createModelFromFile(Device &device, const std::string &filepath) {
+        Builder builder{};
+        builder.loadModel(filepath);
+        LINFO("{} vertex count: {} ", filepath, builder.vertices.size());
+        return MAKE_UNIQUE(Model, device, builder);
+    }
+
     void Model::createVertexBuffers(const std::vector<Vertex> &vertices) {
         vertexCount = C_UI32T(vertices.size());
         assert(vertexCount >= 3 && "Vertex count must be at least 3");
@@ -102,6 +125,95 @@ namespace lve {
         vkDestroyBuffer(device_device, stagingBuffer, nullptr);
         vkFreeMemory(device_device, stagingBufferMemory, nullptr);
     }
+
+    void Model::Builder::loadModel(const std::string &filepath) {
+#ifdef INDEPTH
+#endif
+        vnd::AutoTimer t{FORMAT("loadModel {}", filepath), vnd::Timer::Big};
+        tinyobj::attrib_t attrib;
+        std::vector<tinyobj::shape_t> shapes;
+        std::vector<tinyobj::material_t> materials;
+        std::string warn, err;
+
+        if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath.c_str())) [[unlikely]] {
+            throw std::runtime_error(warn + err);
+        }
+
+        vertices.clear();
+        indices.clear();
+
+        std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+        uniqueVertices.reserve(shapes.size() * 3);
+        std::for_each(std::execution::par,shapes.begin(), shapes.end(), [&](const auto&  shape) {
+            for(const auto &index : shape.mesh.indices) {
+                Vertex vertex{};
+                const auto vertex_index = 3 * index.vertex_index;
+
+                if(index.vertex_index >= 0) [[likely]] {
+                    vertex.position = {attrib.vertices[vertex_index], attrib.vertices[vertex_index + 1],
+                                       attrib.vertices[vertex_index + 2]};
+
+                    auto colorIndex = vertex_index + 2;
+                    if(colorIndex < attrib.colors.size()) [[likely]] {
+                        vertex.color = {attrib.colors[colorIndex - 2], attrib.colors[colorIndex - 1], attrib.colors[colorIndex]};
+                    } else  [[unlikely]] {
+                        vertex.color =  defaultColor;  // set default color
+                    }
+                }
+
+                if(index.normal_index >= 0) [[likely]] {
+                    const auto normal_index = 3 * index.normal_index;
+                    vertex.normal = {attrib.normals[normal_index], attrib.normals[normal_index + 1], attrib.normals[normal_index + 2]};
+                }
+
+                if(index.texcoord_index >= 0) [[likely]] {
+                    const  auto texcoord_index = 2 * index.texcoord_index;
+                    vertex.uv = {attrib.texcoords[texcoord_index], attrib.texcoords[texcoord_index + 1]};
+                }
+
+                if(uniqueVertices.count(vertex) == 0) [[likely]] {
+                    uniqueVertices[vertex] = C_UI32T(vertices.size());
+                    vertices.emplace_back(std::move(vertex));
+                }
+                indices.emplace_back(uniqueVertices[vertex]);
+            }
+        });
+        /*for(const auto &shape : shapes) {
+            for(const auto &index : shape.mesh.indices) {
+                Vertex vertex{};
+                const auto vertex_index = 3 * index.vertex_index;
+
+                if(index.vertex_index >= 0) [[likely]] {
+                    vertex.position = {attrib.vertices[vertex_index], attrib.vertices[vertex_index + 1],
+                                       attrib.vertices[vertex_index + 2]};
+
+                    auto colorIndex = vertex_index + 2;
+                    if(colorIndex < attrib.colors.size()) [[likely]] {
+                        vertex.color = {attrib.colors[colorIndex - 2], attrib.colors[colorIndex - 1], attrib.colors[colorIndex]};
+                    } else  [[unlikely]] {
+                        vertex.color = {1.f, 1.f, 1.f};  // set default color
+                    }
+                }
+
+                if(index.normal_index >= 0) [[likely]] {
+                    const auto normal_index = 3 * index.normal_index;
+                    vertex.normal = {attrib.normals[normal_index], attrib.normals[normal_index + 1], attrib.normals[normal_index + 2]};
+                }
+
+                if(index.texcoord_index >= 0) [[likely]] {
+                    const  auto texcoord_index = 2 * index.texcoord_index;
+                    vertex.uv = {attrib.texcoords[texcoord_index], attrib.texcoords[texcoord_index + 1]};
+                }
+
+                if(uniqueVertices.count(vertex) == 0) [[likely]] {
+                    uniqueVertices[vertex] = C_UI32T(vertices.size());
+                    vertices.emplace_back(std::move(vertex));
+                }
+                indices.emplace_back(uniqueVertices[vertex]);
+            }
+        }*/
+    }
+
     DISABLE_WARNINGS_POP()
 }  // namespace lve
    // NOLINTEND(*-include-cleaner)
