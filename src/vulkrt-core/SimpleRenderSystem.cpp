@@ -9,31 +9,37 @@
 namespace lve {
     DISABLE_WARNINGS_PUSH(4324)
     struct SimplePushConstantData {
-        glm::mat4 transform{1.0F};
+        glm::mat4 modelMatrix{1.0F};
         glm::mat4 normalMatrix{1.0F};
     };
     DISABLE_WARNINGS_POP()
     DISABLE_WARNINGS_PUSH(26432 26447)
-    SimpleRenderSystem::SimpleRenderSystem(Device &device, VkRenderPass renderPass) : lveDevice{device} {
-        createPipelineLayout();
+    static inline constexpr auto SIMPLE_PUSH_CONSTANT_DATA_SIZE = sizeof(SimplePushConstantData);
+    SimpleRenderSystem::SimpleRenderSystem(Device &device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+      : lveDevice{device} {
+        createPipelineLayout(globalSetLayout);
         createPipeline(renderPass);
     }
 
     SimpleRenderSystem::~SimpleRenderSystem() { vkDestroyPipelineLayout(lveDevice.device(), pipelineLayout, nullptr); }
     DISABLE_WARNINGS_POP()
 
-    void SimpleRenderSystem::createPipelineLayout() {
-        VkPushConstantRange pushConstantRange{};
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-        pushConstantRange.offset = 0;
-        pushConstantRange.size = sizeof(SimplePushConstantData);
+    void SimpleRenderSystem::createPipelineLayout(VkDescriptorSetLayout globalSetLayout) {
+        const VkPushConstantRange pushConstantRange{
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = SIMPLE_PUSH_CONSTANT_DATA_SIZE,
+        };
 
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0;
-        pipelineLayoutInfo.pSetLayouts = nullptr;
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+        std::array<VkDescriptorSetLayout, 1> descriptorSetLayouts{globalSetLayout};
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = C_UI32T(descriptorSetLayouts.size()),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &pushConstantRange,
+        };
 
         VK_CHECK(vkCreatePipelineLayout(lveDevice.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout),
                  "failed to  create pipeline layout!");
@@ -57,19 +63,22 @@ namespace lve {
     static inline constexpr float DELTA_Y = 0.01F;
     static inline constexpr float DELAT_X = 0.005f;
 
-    void SimpleRenderSystem::renderGameObjects(FrameInfo &frameInfo, std::vector<GameObject> &gameObjects) {
+    void SimpleRenderSystem::SimpleRenderSystem::renderGameObjects(FrameInfo& frameInfo) {
         lvePipeline->bind(frameInfo.commandBuffer);
 
-        const auto projectionView = frameInfo.camera.getProjection() * frameInfo.camera.getView();
+        vkCmdBindDescriptorSets(frameInfo.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1,
+                                &frameInfo.globalDescriptorSet, 0, nullptr);
 
-        for(auto &obj : gameObjects) {
+        for (auto& kv : frameInfo.gameObjects) {
+            auto& obj = kv.second;
+            if (obj.model == nullptr) { continue;}
             SimplePushConstantData push{};
-            const auto modelMatrix = obj.transform.mat4();
-            push.transform = projectionView * modelMatrix;
+            push.modelMatrix = obj.transform.mat4();
             push.normalMatrix = obj.transform.normalMatrix();
 
+            // NOLINTNEXTLINE(*-signed-bitwise)
             vkCmdPushConstants(frameInfo.commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                               sizeof(SimplePushConstantData), &push);
+                               SIMPLE_PUSH_CONSTANT_DATA_SIZE, &push);
             obj.model->bind(frameInfo.commandBuffer);
             obj.model->draw(frameInfo.commandBuffer);
         }

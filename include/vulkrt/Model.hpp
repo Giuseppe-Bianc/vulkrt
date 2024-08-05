@@ -31,7 +31,7 @@ namespace lve {
             void loadModel(const std::string &filepath);
         };
 
-        Model(Device &device, const Model::Builder &builder) noexcept;
+        Model(Device &device, const Builder &builder) noexcept;
         ~Model() = default;
         Model(const Model &) = delete;
         Model &operator=(const Model &) = delete;

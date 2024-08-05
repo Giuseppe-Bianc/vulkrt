@@ -7,6 +7,7 @@
 #include "GameObject.hpp"
 #include "Renderer.hpp"
 #include "Window.hpp"
+#include "Descriptors.hpp"
 
 namespace lve {
 
@@ -24,7 +25,9 @@ namespace lve {
         Window lveWindow{WWIDTH, WHEIGHT, WTITILE};
         Device lveDevice{lveWindow};
         Renderer lveRenderer{lveWindow, lveDevice};
-        std::vector<GameObject> gameObjects;
+        // note: order of declarations matters
+        std::unique_ptr<DescriptorPool> globalPool{};
+        GameObject::Map gameObjects;
         int frameCount;
         float totalTime;
     };

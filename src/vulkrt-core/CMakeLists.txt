@@ -15,6 +15,7 @@ add_library(vulkrt-core Vulkrt.cpp
         KeyboardMovementController.cpp
         GameObject.cpp
         Buffer.cpp
+        Descriptors.cpp
 )
 
 

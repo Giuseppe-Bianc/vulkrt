@@ -16,7 +16,8 @@ namespace lve {
      * @return VkResult of the buffer mapping call
      */
     VkDeviceSize Buffer::getAlignment(VkDeviceSize instanceSize, VkDeviceSize minOffsetAlignment) noexcept {
-        if(minOffsetAlignment > 0) { return (instanceSize + minOffsetAlignment - 1) & ~(minOffsetAlignment - 1); }
+        const auto minOffsetAlignmentr = minOffsetAlignment - 1;
+        if(minOffsetAlignment > 0) { return (instanceSize + minOffsetAlignmentr) & ~(minOffsetAlignmentr); }
         return instanceSize;
     }
 
@@ -73,15 +74,15 @@ namespace lve {
      * @param offset (Optional) Byte offset from beginning of mapped region
      *
      */
-    void Buffer::writeToBuffer(void *data, VkDeviceSize size, VkDeviceSize offset) noexcept {
+
+    void Buffer::writeToBuffer(const void *data, VkDeviceSize size, VkDeviceSize offset) noexcept {
         assert(mapped && "Cannot copy to unmapped buffer");
 
         if(size == VK_WHOLE_SIZE) {
-            memcpy(mapped, data, bufferSize);
+            std::memcpy(mapped, data, bufferSize);
         } else {
-            auto *memOffset = (char *)mapped;
-            memOffset += offset;
-            memcpy(memOffset, data, size);
+            auto *memOffset = static_cast<std::byte *>(mapped) + offset;
+            std::memcpy(memOffset, data, size);
         }
     }
     DISABLE_WARNINGS_POP()

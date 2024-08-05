@@ -87,6 +87,36 @@ namespace tinyobj {
 
 #endif
 
+#ifdef _MSC_VER
+// Microsoft Visual C++ Compiler
+/**
+ * @def DISABLE_WARNINGS_PUSH(...)
+ * @brief Pushes a warning suppression for Microsoft Visual C++ Compiler.
+ *
+ * @param[in] ... Variable number of warning IDs to be disabled.
+ */
+#define DISABLE_WARNINGS_PUSH(...) __pragma(warning(push)) __pragma(warning(disable : __VA_ARGS__))
+/**
+ * @def DISABLE_WARNINGS_POP()
+ * @brief Pops the previously pushed warning suppression for Microsoft Visual C++ Compiler.
+ */
+#define DISABLE_WARNINGS_POP() __pragma(warning(pop))
+#else
+    /**
+     * @def DISABLE_WARNINGS_PUSH(...)
+     * @brief Placeholder for non-Microsoft compilers.
+     *
+     * @param[in] ... Variable number of warning IDs (ignored for non-Microsoft compilers).
+     */
+#define DISABLE_WARNINGS_PUSH(...)
+    /**
+     * @def DISABLE_WARNINGS_POP()
+     * @brief Placeholder for non-Microsoft compilers (ignored for non-Microsoft compilers).
+     */
+#define DISABLE_WARNINGS_POP()
+#endif
+    // NOLINTEND
+
     // https://en.wikipedia.org/wiki/Wavefront_.obj_file says ...
     //
     //  -blendu on | off                       # set horizontal texture blending
@@ -462,7 +492,9 @@ namespace tinyobj {
     public:
         // Path could contain separator(';' in Windows, ':' in Posix)
         explicit MaterialFileReader(const std::string &mtl_basedir) : m_mtlBaseDir(mtl_basedir) {}
+        DISABLE_WARNINGS_PUSH(26432)
         virtual ~MaterialFileReader() TINYOBJ_OVERRIDE {}
+        DISABLE_WARNINGS_POP()
         virtual bool operator()(const std::string &matId, std::vector<material_t> *materials, std::map<std::string, int> *matMap,
                                 std::string *warn, std::string *err) TINYOBJ_OVERRIDE;
 
@@ -476,7 +508,9 @@ namespace tinyobj {
     class MaterialStreamReader : public MaterialReader {
     public:
         explicit MaterialStreamReader(std::istream &inStream) noexcept : m_inStream(inStream) {}
+        DISABLE_WARNINGS_PUSH(26432)
         virtual ~MaterialStreamReader() TINYOBJ_OVERRIDE {}
+        DISABLE_WARNINGS_POP()
         virtual bool operator()(const std::string &matId, std::vector<material_t> *materials, std::map<std::string, int> *matMap,
                                 std::string *warn, std::string *err) TINYOBJ_OVERRIDE;
 

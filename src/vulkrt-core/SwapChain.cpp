@@ -4,7 +4,9 @@
 
 namespace lve {
     DISABLE_WARNINGS_PUSH(26429 26432 26447 26461 26446 26485)
-    SwapChain::SwapChain(Device &deviceRef, const VkExtent2D &extent) noexcept : device{deviceRef}, windowExtent{extent} { init(); }
+    SwapChain::SwapChain(Device &deviceRef, const VkExtent2D &extent) noexcept : device{deviceRef}, windowExtent{extent} {
+        init();
+    }
 
     SwapChain::SwapChain(Device &deviceRef, const VkExtent2D &extent, std::shared_ptr<SwapChain> previous)
       : device{deviceRef}, windowExtent{extent}, oldSwapChain{std::move(previous)} {
@@ -63,42 +65,40 @@ namespace lve {
 
     VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex) {
         const auto device_device = device.device();
-        if(imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
-            vkWaitForFences( device_device, 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
+        const auto imageIndexp = *imageIndex;
+
+        if(imagesInFlight[imageIndexp] != VK_NULL_HANDLE) {
+            vkWaitForFences(device_device, 1, &imagesInFlight[imageIndexp], VK_TRUE, UINT64_MAX);
         }
-        imagesInFlight[*imageIndex] = inFlightFences[currentFrame];
+        imagesInFlight[imageIndexp] = inFlightFences[currentFrame];
 
-        VkSubmitInfo submitInfo = {};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        std::array<VkSemaphore, 1> waitSemaphores = {imageAvailableSemaphores[currentFrame]};
+        std::array<VkPipelineStageFlags, 1> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        std::array<VkSemaphore, 1> signalSemaphores = {renderFinishedSemaphores[currentFrame]};
+        std::array<VkSwapchainKHR, 1> swapChains = {swapChain};
+        const VkSubmitInfo submitInfo = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = C_UI32T(waitSemaphores.size()),
+            .pWaitSemaphores = waitSemaphores.data(),
+            .pWaitDstStageMask = waitStages.data(),
+            .commandBufferCount = 1,
+            .pCommandBuffers = buffers,
+            .signalSemaphoreCount = C_UI32T(signalSemaphores.size()),
+            .pSignalSemaphores = signalSemaphores.data(),
+        };
 
-        const std::vector<VkSemaphore> waitSemaphores = {imageAvailableSemaphores[currentFrame]};
-        const std::vector<VkPipelineStageFlags> waitStages = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-        submitInfo.waitSemaphoreCount = 1;
-        submitInfo.pWaitSemaphores = waitSemaphores.data();
-        submitInfo.pWaitDstStageMask = waitStages.data();
-
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = buffers;
-
-        const std::vector<VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame]};
-        submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores = signalSemaphores.data();
-
-        vkResetFences( device_device, 1, &inFlightFences[currentFrame]);
+        vkResetFences(device_device, 1, &inFlightFences[currentFrame]);
         VK_CHECK(vkQueueSubmit(device.graphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]),
                  "failed to submit draw command buffer!");
 
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-        presentInfo.waitSemaphoreCount = 1;
-        presentInfo.pWaitSemaphores = signalSemaphores.data();
-
-        std::vector<VkSwapchainKHR> swapChains = {swapChain};
-        presentInfo.swapchainCount = 1;
-        presentInfo.pSwapchains = swapChains.data();
-
-        presentInfo.pImageIndices = imageIndex;
+        const VkPresentInfoKHR presentInfo = {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = C_UI32T(signalSemaphores.size()),
+            .pWaitSemaphores = signalSemaphores.data(),
+            .swapchainCount = C_UI32T(swapChains.size()),
+            .pSwapchains = swapChains.data(),
+            .pImageIndices = imageIndex,
+        };
 
         const auto result = vkQueuePresentKHR(device.presentQueue(), &presentInfo);
 
@@ -132,7 +132,7 @@ namespace lve {
         createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
         const QueueFamilyIndices indices = device.findPhysicalQueueFamilies();
-        std::vector<uint32_t> queueFamilyIndices = {indices.graphicsFamily, indices.presentFamily};
+        const std::array<uint32_t, 2> queueFamilyIndices = {indices.graphicsFamily, indices.presentFamily};
 
         if(indices.graphicsFamily != indices.presentFamily) {
             createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
@@ -152,7 +152,7 @@ namespace lve {
 
         createInfo.oldSwapchain = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
 
-        VK_CHECK(vkCreateSwapchainKHR( device_device, &createInfo, nullptr, &swapChain), "failed to create swap chain!");
+        VK_CHECK(vkCreateSwapchainKHR(device_device, &createInfo, nullptr, &swapChain), "failed to create swap chain!");
 
         // we only specified a minimum number of images in the swap chain, so the implementation is
         // allowed to create a swap chain with more. That's why we'll first query the final number of
@@ -167,20 +167,25 @@ namespace lve {
     }
 
     void SwapChain::createImageViews() {
+        const auto device_device = device.device();
         swapChainImageViews.resize(swapChainImages.size());
         for(const auto [i, image] : std::views::enumerate(swapChainImages)) {
-            VkImageViewCreateInfo viewInfo{};
-            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-            viewInfo.image = image;
-            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-            viewInfo.format = swapChainImageFormat;
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-            viewInfo.subresourceRange.baseMipLevel = 0;
-            viewInfo.subresourceRange.levelCount = 1;
-            viewInfo.subresourceRange.baseArrayLayer = 0;
-            viewInfo.subresourceRange.layerCount = 1;
+            const VkImageViewCreateInfo viewInfo{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = image,
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = swapChainImageFormat,
+                .subresourceRange =
+                    {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                    },
+            };
 
-            VK_CHECK(vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]),
+            VK_CHECK(vkCreateImageView(device_device, &viewInfo, nullptr, &swapChainImageViews[i]),
                      "failed to create texture image view!");
         }
     }
@@ -246,6 +251,7 @@ namespace lve {
         const vnd::AutoTimer timer{"createFramebuffers", vnd::Timer::Big};
 #endif
         const auto imagectn = imageCount();
+        const auto device_device = device.device();
         swapChainFramebuffers.resize(imagectn);
         for(size_t i = 0; i < imagectn; i++) {
             std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthImageViews[i]};
@@ -260,7 +266,7 @@ namespace lve {
             framebufferInfo.height = swapChainExtentm.height;
             framebufferInfo.layers = 1;
 
-            VK_CHECK(vkCreateFramebuffer(device.device(), &framebufferInfo, nullptr, &swapChainFramebuffers[i]),
+            VK_CHECK(vkCreateFramebuffer(device_device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]),
                      "failed to create framebuffer!");
         }
     }
@@ -273,6 +279,7 @@ namespace lve {
         const VkFormat depthFormat = findDepthFormat();
         swapChainDepthFormat = depthFormat;
         const VkExtent2D swapChainExtentm = getSwapChainExtent();
+        const auto device_device = device.device();
 
         depthImages.resize(imagectn);
         depthImageMemorys.resize(imagectn);
@@ -308,7 +315,7 @@ namespace lve {
             viewInfo.subresourceRange.baseArrayLayer = 0;
             viewInfo.subresourceRange.layerCount = 1;
 
-            VK_CHECK(vkCreateImageView(device.device(), &viewInfo, nullptr, &depthImageViews[i]), "failed to create texture image view!");
+            VK_CHECK(vkCreateImageView(device_device, &viewInfo, nullptr, &depthImageViews[i]), "failed to create texture image view!");
         }
     }
 

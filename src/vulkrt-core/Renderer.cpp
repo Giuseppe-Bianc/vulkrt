@@ -36,11 +36,12 @@ namespace lve {
 
     void Renderer::createCommandBuffers() {
         commandBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = lveDevice.getCommandPool();
-        allocInfo.commandBufferCount = C_UI32T(commandBuffers.size());
+        const VkCommandBufferAllocateInfo allocInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = lveDevice.getCommandPool(),
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = C_UI32T(commandBuffers.size()),
+        };
 
         VK_CHECK(vkAllocateCommandBuffers(lveDevice.device(), &allocInfo, commandBuffers.data()), "failed to allocate command buffers!");
     }
@@ -91,30 +92,31 @@ namespace lve {
         assert(isFrameStarted && "Can't call beginSwapChainRenderPass if frame is not in progress");
         assert(commandBuffer == getCurrentCommandBuffer() && "Can't begin render pass on command buffer from a different frame");
 
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = lveSwapChain->getRenderPass();
-        renderPassInfo.framebuffer = lveSwapChain->getFrameBuffer(C_I(currentImageIndex));
-
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = lveSwapChain->getSwapChainExtent();
-
+        const auto swpextent = lveSwapChain->getSwapChainExtent();
         std::array<VkClearValue, 2> clearValues{};
         clearValues[0].color = {0.01F, 0.01F, 0.01F, 1.0F};  // NOLINT(*-pro-type-union-access)
         clearValues[1].depthStencil = {1.0F, 0};             // NOLINT(*-pro-type-union-access)
-        renderPassInfo.clearValueCount = C_UI32T(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
+        const VkRect2D renderArea{{0, 0}, swpextent};
+        const VkRenderPassBeginInfo renderPassInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = lveSwapChain->getRenderPass(),
+            .framebuffer = lveSwapChain->getFrameBuffer(C_I(currentImageIndex)),
+            .renderArea = renderArea,
+            .clearValueCount = C_UI32T(clearValues.size()),
+            .pClearValues = clearValues.data(),
+        };
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        VkViewport viewport{};
-        viewport.x = 0.0f;
-        viewport.y = 0.0f;
-        viewport.width = C_F(lveSwapChain->getSwapChainExtent().width);
-        viewport.height = C_F(lveSwapChain->getSwapChainExtent().height);
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-        const VkRect2D scissor{{0, 0}, lveSwapChain->getSwapChainExtent()};
+        const VkViewport viewport{
+            .x = 0.0f,
+            .y = 0.0f,
+            .width = C_F(swpextent.width),
+            .height = C_F(swpextent.height),
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f,
+        };
+        const VkRect2D scissor{renderArea};
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
     }

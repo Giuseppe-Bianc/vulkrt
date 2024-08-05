@@ -16,15 +16,12 @@ namespace lve {
         [[nodiscard]] glm::mat4 mat4() const;
 
         [[nodiscard]] glm::mat4 normalMatrix() const;
-
-        // NOLINTBEGIN(*-pro-type-union-access)
-
-        // NOLINTEND(*-pro-type-union-access)
     };
 
     class GameObject {
     public:
         using id_t = unsigned int;
+        using Map = std::unordered_map<id_t, GameObject>;
         static GameObject createGameObject() noexcept {
             static id_t currentId = 0;
             return GameObject{currentId++};

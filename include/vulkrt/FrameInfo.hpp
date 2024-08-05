@@ -5,6 +5,7 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "GameObject.hpp"
 
 #include "vulkanCheck.hpp"
 
@@ -14,5 +15,7 @@ namespace lve {
         float frameTime;
         VkCommandBuffer commandBuffer;
         Camera &camera;
+        VkDescriptorSet globalDescriptorSet;
+        GameObject::Map &gameObjects;
     };
 }  // namespace lve

@@ -71,22 +71,22 @@ namespace lve {
         createShaderModule(fragCode, &fragShaderModule);
         const auto device_device = lveDevice.device();
 
-        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{};
-        shaderStages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        shaderStages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
-        shaderStages[0].module = vertShaderModule;
-        shaderStages[0].pName = vertFragPName;
-        shaderStages[0].flags = 0;
-        shaderStages[0].pNext = nullptr;
-        shaderStages[0].pSpecializationInfo = nullptr;
+        std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages{
+            VkPipelineShaderStageCreateInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                                            .pNext = nullptr,
+                                            .flags = 0,
+                                            .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                                            .module = vertShaderModule,
+                                            .pName = vertFragPName,
+                                            .pSpecializationInfo = nullptr},
 
-        shaderStages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-        shaderStages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        shaderStages[1].module = fragShaderModule;
-        shaderStages[1].pName = vertFragPName;
-        shaderStages[1].flags = 0;
-        shaderStages[1].pNext = nullptr;
-        shaderStages[1].pSpecializationInfo = nullptr;
+            VkPipelineShaderStageCreateInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                                            .pNext = nullptr,
+                                            .flags = 0,
+                                            .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                                            .module = fragShaderModule,
+                                            .pName = vertFragPName,
+                                            .pSpecializationInfo = nullptr}};
 
         const auto bindingDescriptions = Model::Vertex::getBindingDescriptions();
         const auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
@@ -97,31 +97,30 @@ namespace lve {
         vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
         vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
 
-        VkGraphicsPipelineCreateInfo pipelineInfo{};
-        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages.data();
-        pipelineInfo.pVertexInputState = &vertexInputInfo;
-        pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-        pipelineInfo.pViewportState = &configInfo.viewportInfo;
-        pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
-        pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
-        pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
-        pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
-        pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
-
-        pipelineInfo.layout = configInfo.pipelineLayout;
-        pipelineInfo.renderPass = configInfo.renderPass;
-        pipelineInfo.subpass = configInfo.subpass;
+        const VkGraphicsPipelineCreateInfo pipelineInfo{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .stageCount = 2,
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputInfo,
+            .pInputAssemblyState = &configInfo.inputAssemblyInfo,
+            .pViewportState = &configInfo.viewportInfo,
+            .pRasterizationState = &configInfo.rasterizationInfo,
+            .pMultisampleState = &configInfo.multisampleInfo,
+            .pDepthStencilState = &configInfo.depthStencilInfo,
+            .pColorBlendState = &configInfo.colorBlendInfo,
+            .pDynamicState = &configInfo.dynamicStateInfo,
+            .layout = configInfo.pipelineLayout,
+            .renderPass = configInfo.renderPass,
+            .subpass = configInfo.subpass,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = -1,
+        };
 
         // Enable pipeline cache
         VkPipelineCache pipelineCache = VK_NULL_HANDLE;
         VkPipelineCacheCreateInfo pipelineCacheInfo{};
         pipelineCacheInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
         vkCreatePipelineCache(device_device, &pipelineCacheInfo, nullptr, &pipelineCache);
-
-        pipelineInfo.basePipelineIndex = -1;
-        pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
         VK_CHECK(vkCreateGraphicsPipelines(device_device, pipelineCache, 1, &pipelineInfo, nullptr, &graphicsPipeline),
                  "failed to create graphics pipeline");
@@ -132,10 +131,11 @@ namespace lve {
     DISABLE_WARNINGS_POP()
 
     void Pipeline::createShaderModule(const std::vector<char> &code, VkShaderModule *shaderModule) const {
-        VkShaderModuleCreateInfo createInfo{};
-        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        createInfo.codeSize = code.size();
-        createInfo.pCode = C_CPCU32T(code.data());
+        const VkShaderModuleCreateInfo createInfo{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = code.size(),
+            .pCode = C_CPCU32T(code.data()),
+        };
 
         VK_CHECK(vkCreateShaderModule(lveDevice.device(), &createInfo, nullptr, shaderModule), "failed to create shader module");
     }

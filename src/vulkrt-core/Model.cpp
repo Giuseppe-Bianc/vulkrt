@@ -26,33 +26,34 @@ namespace lve {
     }
     DISABLE_WARNINGS_POP()
     DISABLE_WARNINGS_PUSH(26446)
+    static inline constexpr auto VERTEX_SIZE = sizeof(Model::Vertex);
     std::vector<VkVertexInputBindingDescription> Model::Vertex::getBindingDescriptions() {
         std::vector<VkVertexInputBindingDescription> bindingDescriptions(1);
         bindingDescriptions[0].binding = 0;
-        bindingDescriptions[0].stride = sizeof(Vertex);
+        bindingDescriptions[0].stride = VERTEX_SIZE;
         bindingDescriptions[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
         return bindingDescriptions;
     }
     std::vector<VkVertexInputAttributeDescription> Model::Vertex::getAttributeDescriptions() {
         std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 
-        attributeDescriptions.push_back({0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)});
-        attributeDescriptions.push_back({1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)});
-        attributeDescriptions.push_back({2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
-        attributeDescriptions.push_back({3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
+        attributeDescriptions.emplace_back(VkVertexInputAttributeDescription{0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)});
+        attributeDescriptions.emplace_back(VkVertexInputAttributeDescription{1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)});
+        attributeDescriptions.emplace_back(VkVertexInputAttributeDescription{2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)});
+        attributeDescriptions.emplace_back(VkVertexInputAttributeDescription{3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)});
 
         return attributeDescriptions;
     }
     void Model::bind(VkCommandBuffer commandBuffer) noexcept {
-        const std::vector<VkBuffer> buffers = {vertexBuffer->getBuffer()};
-        const std::vector<VkDeviceSize> offsets = {0};
+        const std::array<VkBuffer, 1> buffers = {vertexBuffer->getBuffer()};
+        const std::array<VkDeviceSize, 1> offsets = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers.data(), offsets.data());
-        if(hasIndexBuffer) { vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32); }
+        if(hasIndexBuffer) [[likely]] { vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32); }
     }
     void Model::draw(VkCommandBuffer commandBuffer) const noexcept {
-        if(hasIndexBuffer) {
+        if(hasIndexBuffer) [[likely]] {
             vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
-        } else {
+        } else [[unlikely]] {
             vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
         }
     }
@@ -70,6 +71,7 @@ namespace lve {
         uint32_t vertexSize = sizeof(vertices[0]);
         const VkDeviceSize bufferSize = static_cast<VkDeviceSize>(vertexSize) * vertexCount;
 
+        // NOLINTBEGIN(*-signed-bitwise)
         Buffer stagingBuffer{
             lveDevice,
             vertexSize,
@@ -84,6 +86,7 @@ namespace lve {
         vertexBuffer = std::make_unique<Buffer>(lveDevice, vertexSize, vertexCount,
                                                 VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        // NOLINTEND(*-signed-bitwise)
 
         lveDevice.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), bufferSize);
     }
@@ -94,9 +97,10 @@ namespace lve {
 
         if(!hasIndexBuffer) { return; }
 
-        uint32_t indexSize = sizeof(indices[0]);
+        const uint32_t indexSize = sizeof(indices[0]);
         const VkDeviceSize bufferSize = static_cast<VkDeviceSize>(indexSize) * indexCount;
 
+        // NOLINTBEGIN(*-signed-bitwise)
         Buffer stagingBuffer{
             lveDevice,
             indexSize,
@@ -111,6 +115,7 @@ namespace lve {
         indexBuffer = std::make_unique<Buffer>(lveDevice, indexSize, indexCount,
                                                VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        // NOLINTEND(*-signed-bitwise)
 
         lveDevice.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
     }

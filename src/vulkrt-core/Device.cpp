@@ -182,12 +182,10 @@ namespace lve {
 
         constexpr float queuePriority = 1.0f;
         for(const uint32_t queueFamily : uniqueQueueFamilies) {
-            VkDeviceQueueCreateInfo queueCreateInfo = {};
-            queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueCreateInfo.queueFamilyIndex = queueFamily;
-            queueCreateInfo.queueCount = 1;
-            queueCreateInfo.pQueuePriorities = &queuePriority;
-            queueCreateInfos.emplace_back(queueCreateInfo);
+            queueCreateInfos.emplace_back(VkDeviceQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                                                  .queueFamilyIndex = queueFamily,
+                                                                  .queueCount = 1,
+                                                                  .pQueuePriorities = &queuePriority});
         }
 
         VkPhysicalDeviceFeatures deviceFeatures = {};
@@ -299,7 +297,7 @@ namespace lve {
         uint32_t glfwExtensionCount = 0;
         const auto glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
 
-        std::vector<const char *> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+        std::vector<const char *> extensions(glfwExtensions, glfwExtensionCount + glfwExtensions);
 
         if(enableValidationLayers) { extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME); }
 
@@ -352,7 +350,7 @@ namespace lve {
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
         vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-        for(const auto &[i, queueFamily] : std::views::enumerate(queueFamilies)) {
+        for(const auto &[i, queueFamily] : queueFamilies | std::views::enumerate) {
             if(queueFamily.queueCount > 0 && C_BOOL(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)) {  // NOLINT(*-signed-bitwise)
                 indices.graphicsFamily = C_UI32T(i);
                 indices.graphicsFamilyHasValue = true;
@@ -376,7 +374,7 @@ namespace lve {
         uint32_t formatCount{};
         vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, nullptr);
 
-        if(formatCount != 0) {
+        if(formatCount != 0) [[likely]] {
             details.formats.resize(formatCount);
             vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface_, &formatCount, details.formats.data());
         }
@@ -384,7 +382,7 @@ namespace lve {
         uint32_t presentModeCount{};
         vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, nullptr);
 
-        if(presentModeCount != 0) {
+        if(presentModeCount != 0) [[likely]] {
             details.presentModes.resize(presentModeCount);
             vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface_, &presentModeCount, details.presentModes.data());
         }
@@ -432,21 +430,17 @@ namespace lve {
 
     void Device::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags mproperties, VkBuffer &buffer,
                               VkDeviceMemory &bufferMemory) {
-        VkBufferCreateInfo bufferInfo{};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-        bufferInfo.size = size;
-        bufferInfo.usage = usage;
-        bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        const VkBufferCreateInfo bufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .size = size, .usage = usage, .sharingMode = VK_SHARING_MODE_EXCLUSIVE};
 
-        VK_CHECK(vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer), "failed to create vertex buffer!");
+        VK_CHECK(vkCreateBuffer(device_, &bufferInfo, nullptr, &buffer), "failed to create buffer!");
 
         VkMemoryRequirements memRequirements;
         vkGetBufferMemoryRequirements(device_, buffer, &memRequirements);
 
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties);
+        const VkMemoryAllocateInfo allocInfo = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                                .allocationSize = memRequirements.size,
+                                                .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties)};
 
         VK_CHECK(vkAllocateMemory(device_, &allocInfo, nullptr, &bufferMemory), "failed to allocate vertex buffer memory!");
 
@@ -488,10 +482,8 @@ namespace lve {
     void Device::copyBuffer(const VkBuffer &srcBuffer, const VkBuffer &dstBuffer, VkDeviceSize size) noexcept {
         const VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-        VkBufferCopy copyRegion{};
-        copyRegion.srcOffset = 0;  // Optional
-        copyRegion.dstOffset = 0;  // Optional
-        copyRegion.size = size;
+        const VkBufferCopy copyRegion = {.srcOffset = 0, .dstOffset = 0, .size = size};
+
         vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
         endSingleTimeCommands(commandBuffer);
@@ -500,20 +492,16 @@ namespace lve {
     void Device::copyBufferToImage(const VkBuffer &buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount) noexcept {
         const VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
-        VkBufferImageCopy region{};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = layerCount;
-
-        region.imageOffset = {0, 0, 0};
-        region.imageExtent = {width, height, 1};
+        const VkBufferImageCopy region = {
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = {.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .mipLevel = 0, .baseArrayLayer = 0, .layerCount = layerCount},
+            .imageOffset = {0, 0, 0},
+            .imageExtent = {width, height, 1}};
 
         vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
         endSingleTimeCommands(commandBuffer);
     }
 
@@ -524,10 +512,9 @@ namespace lve {
         VkMemoryRequirements memRequirements;
         vkGetImageMemoryRequirements(device_, image, &memRequirements);
 
-        VkMemoryAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        allocInfo.allocationSize = memRequirements.size;
-        allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties);
+        const VkMemoryAllocateInfo allocInfo = {.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+                                                .allocationSize = memRequirements.size,
+                                                .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, mproperties)};
 
         VK_CHECK(vkAllocateMemory(device_, &allocInfo, nullptr, &imageMemory), "failed to allocate image memory!");
 

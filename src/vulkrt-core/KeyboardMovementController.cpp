@@ -9,6 +9,7 @@ namespace lve {
     static inline constexpr auto ROATATION_UNIT = 1.0;
     void KeyboardMovementController::moveInPlaneXZ(GLFWwindow *window, float dt, GameObject &gameObject) const {
         glm::vec3 rotate{0};
+        // NOLINTBEGIN(*-pro-type-union-access)
         if(glfwGetKey(window, keys.lookRight) == GLFW_PRESS) { rotate.y += ROATATION_UNIT; }
         if(glfwGetKey(window, keys.lookLeft) == GLFW_PRESS) { rotate.y -= ROATATION_UNIT; }
         if(glfwGetKey(window, keys.lookUp) == GLFW_PRESS) { rotate.x += ROATATION_UNIT; }
@@ -20,7 +21,7 @@ namespace lve {
         gameObject.transform.rotation.y = glm::mod(gameObject.transform.rotation.y, GLM_TWO_PI);
 
         const auto yaw = gameObject.transform.rotation.y;
-        const glm::vec3 forwardDir{sin(yaw), 0.f, cos(yaw)};
+        const glm::vec3 forwardDir{std::sin(yaw), 0.f, std::cos(yaw)};
         const glm::vec3 rightDir{forwardDir.z, 0.f, -forwardDir.x};
 
         glm::vec3 moveDir{0.f};
@@ -32,5 +33,6 @@ namespace lve {
         if(glfwGetKey(window, keys.moveDown) == GLFW_PRESS) { moveDir -= upDir; }
 
         if(glm::dot(moveDir, moveDir) > FLOATEPS) { gameObject.transform.translation += moveSpeed * dt * glm::normalize(moveDir); }
+        // NOLINTEND(*-pro-type-union-access)
     }
 }  // namespace lve
